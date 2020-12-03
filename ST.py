@@ -2,38 +2,40 @@ import numpy as np
 import torch
 import torch.fft
 
-class ST_mycode(object):
+class ST_2D(object):
     def __init__(self, filters_set):
         self.filters_set = filters_set
 
-    def forward(self, data, J, L, backend='torch', input_dtype='numpy',
-                  j1j2_criteria='j2>j1', mask=None, pseudo_coef=1):
-        # Number of coefficients per layer
+    def forward(self, data, J, L, backend='torch',
+                j1j2_criteria='j2>j1', mask=None, pseudo_coef=1):
+        """
+        calculate the scattering coefficients of a 2D image.
+        data: array, with the same size as the filters in self.filters_set
+        J:    int, number of wavelet scales used
+        j1j2_criteria: str, an expression with j1 and j2
+        mask: None or 2D-array, indicating the weight of pixels when taking 
+            the spatial average in S_n = <I_n>
+        pseudo_coef: the power after taking modulus.
+        """
+        
         filters_set = self.filters_set
-        self.M = data.shape[-2]
-        self.N = data.shape[-1]
-
         if mask is not None:
-            mask /= mask.mean()
+            mask /= mask.mean() # normalize the mask array
         else:
             mask = 1
 
-        if input_dtype=='numpy':
-            S_0 = np.zeros(1, dtype=data.dtype)
-            S_1 = np.zeros((J,L), dtype=data.dtype)
-            S_2 = np.zeros((J,L,J,L), dtype=data.dtype)
-            S_2_reduced = np.zeros((J,J,L), dtype=data.dtype)
-        elif input_dtype=='torch':
-            S_0 = torch.zeros(1, dtype=data.dtype)
-            S_1 = torch.zeros((J,L), dtype=data.dtype)
-            S_2 = torch.zeros((J,L,J,L), dtype=data.dtype)
-            S_2_reduced = torch.zeros((J,J,L), dtype=data.dtype)
-        S_0[0] = data.mean()
+        S_0 = np.zeros(1, dtype=data.dtype)
+        S_1 = np.zeros((J,L), dtype=data.dtype)
+        S_2 = np.zeros((J,L,J,L), dtype=data.dtype)
+        S_2_reduced = np.zeros((J,J,L), dtype=data.dtype)
+        
+        S_0[0] = (data * mask).mean()
         
         if backend=='torch':
-            if input_dtype=='numpy':
-                data = torch.from_numpy(data)
+            data = torch.from_numpy(data)
             data_f = torch.fft.fftn(data, dim=(-2,-1))
+            
+            # calculate 1st-order coefficients
             for j1 in np.arange(J):
                 for l1 in np.arange(L):
                     I_1_temp  = torch.fft.ifftn(
@@ -41,7 +43,8 @@ class ST_mycode(object):
                         dim=(-2,-1),
                     ).abs()**pseudo_coef
                     S_1[j1,l1] = (I_1_temp.numpy() * mask).mean()
-
+                    
+                    # calculate 2nd-order coefficients
                     I_1_temp_f = torch.fft.fftn(I_1_temp, dim=(-2,-1))
                     for j2 in np.arange(J):
                         if eval(j1j2_criteria):
@@ -57,7 +60,7 @@ class ST_mycode(object):
             for j1 in np.arange(J):
                 for l1 in np.arange(L):
                     I_1_temp  = np.abs(np.fft.ifft2(
-                         data_f * filters_set['psi'][j1*L+l1][0]
+                        data_f * filters_set['psi'][j1*L+l1][0]# filters should be np.array
                     ))**pseudo_coef
                     S_1[j1,l1] = (I_1_temp * mask).mean()
 
@@ -69,7 +72,6 @@ class ST_mycode(object):
                                     I_1_temp_f * filters_set['psi'][j2*L+l2][0]
                                 ))**pseudo_coef
                                 S_2[j1,l1,j2,l2] = (I_2_temp * mask).mean()
-                                # what about masks?
                                 
         for l1 in range(L):
             for l2 in range(L):
