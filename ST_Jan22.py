@@ -42,22 +42,23 @@ class ST_mycode_new(object):
         M, N = self.M, self.N
         data = torch.from_numpy(data)
         data_f = torch.fft.fftn(data, dim=(-2,-1))
+        N_image = data.shape[0]
         
-        S_0 = torch.zeros(1, dtype=data.dtype)  
-        S_1 = torch.zeros((J,L), dtype=data.dtype)
-        S_2 = torch.zeros((J,L,J,L), dtype=data.dtype)
-        S_2_reduced = torch.zeros((J,J,L), dtype=data.dtype)
+        S_0 = torch.zeros((N_image,1), dtype=data.dtype)  
+        S_1 = torch.zeros((N_image,J,L), dtype=data.dtype)
+        S_2 = torch.zeros((N_image,J,L,J,L), dtype=data.dtype)
+        S_2_reduced = torch.zeros((N_image,J,J,L), dtype=data.dtype)
         if self.device=='gpu':
             S_1 = S_1.cuda()
             S_2 = S_2.cuda()
             S_2_reduced = S_2_reduced.cuda()
-        S_0[0] = data.mean()
+        S_0[:,0] = data.mean((-2,-1))
         
         if algorithm == 'classic':
             filters_set = self.filters_set
 
             I_1_temp  = torch.fft.ifftn(
-                data_f[None,None,:,:] * filters_set,
+                data_f[:,None,None,:,:] * filters_set[None,:,:,:,:],
                 dim=(-2,-1),
             ).abs()**pseudo_coef
             S_1 = I_1_temp.mean((-2,-1))
@@ -67,10 +68,10 @@ class ST_mycode_new(object):
                 for j2 in np.arange(J):
                     if eval(j1j2_criteria):
                         I_2_temp = torch.fft.ifftn(
-                            I_1_temp_f[j1,:,None,:,:] * filters_set[j2,None,:,:,:], 
+                            I_1_temp_f[:,j1,:,None,:,:] * filters_set[None,j2,None,:,:,:], 
                             dim=(-2,-1),
                         ).abs()**pseudo_coef
-                        S_2[j1,:,j2,:] = I_2_temp.mean((-2,-1))
+                        S_2[:,j1,:,j2,:] = I_2_temp.mean((-2,-1))
 
         if algorithm == 'fast':
             # only use the low-k Fourier coefs when calculating large-j scattering coefs.
@@ -84,10 +85,10 @@ class ST_mycode_new(object):
                     wavelet_f = self.filters_set[j1]
                 _, M1, N1 = wavelet_f.shape
                 I_1_temp  = torch.fft.ifftn(
-                    data_f_small[None,:,:] * wavelet_f,
+                    data_f_small[:,None,:,:] * wavelet_f[None,:,:,:],
                     dim=(-2,-1),
                 ).abs()**pseudo_coef
-                S_1[j1] = I_1_temp.mean((-2,-1))* M1*N1/M/N
+                S_1[:,j1] = I_1_temp.mean((-2,-1))* M1*N1/M/N
                 
                 I_1_temp_f = torch.fft.fftn(I_1_temp, dim=(-2,-1))
                 for j2 in np.arange(J):
@@ -100,19 +101,18 @@ class ST_mycode_new(object):
                         wavelet_f2 = self.cut_high_k_off(self.filters_set[j2], j2)
                         _, M2, N2 = wavelet_f2.shape
                         I_2_temp = torch.fft.ifftn(
-                            I_1_temp_f_small[:,None,:,:] * wavelet_f2[None,:,:,:], 
+                            I_1_temp_f_small[:,:,None,:,:] * wavelet_f2[None,None,:,:,:], 
                             dim=(-2,-1),
                         ).abs()**pseudo_coef
-                        S_2[j1,:,j2,:] = I_2_temp.mean((-2,-1)) * M2*N2/M/N                      
+                        S_2[:,j1,:,j2,:] = I_2_temp.mean((-2,-1)) * M2*N2/M/N                      
 
         for l1 in range(L):
             for l2 in range(L):
-                S_2_reduced[:,:,(l2-l1)%L] += S_2[:,l1,:,l2]
+                S_2_reduced[:,:,:,(l2-l1)%L] += S_2[:,:,l1,:,l2]
         S_2_reduced /= L
         
-        S = torch.cat(( S_0, S_1.sum(1), S_2_reduced.flatten()  )).numpy()
-        return S, S_0, S_1, S_2
-
+        S = torch.cat(( S_0, S_1.sum(-1), S_2_reduced.reshape((N_image,-1))  ), 1).numpy()
+        return S, S_0.numpy(), S_1.numpy(), S_2.numpy()
 
 
 class FiltersSet(object):
