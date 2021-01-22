@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import ST
+import ST_Jan22
 
 J = 8
 L = 4
