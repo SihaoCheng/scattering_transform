@@ -15,7 +15,7 @@ filters_set = np.load('filters_set_mycode_M'+str(M)+
 ST_calculator = ST.ST_mycode_new(filters_set, J, L, device='gpu')
 
 ############ DEFINE DATA ARRAY #########
-data = np.empty((M, N))
+data = np.empty((20, M, N))
 
 ################## ST ##################
 S, S_0, S_1, S_2 = ST_calculator.forward(
