@@ -7,7 +7,7 @@ L = 4
 M = 512
 N = 512
 
-f = ST.FiltersSet(M, N, J, L)
+f = ST_Jan22.FiltersSet(M, N, J, L)
 
 # generate and save morlet filter bank. "single" means single precision
 save_dir = '#####'
@@ -19,7 +19,7 @@ filters_set = np.load(save_dir + 'filters_set_mycode_M' + str(M) +
     allow_pickle=True)[0]['filters_set']
 
 # define ST calculator
-ST_calculator = ST.ST_mycode_new(filters_set, J, L, device='gpu')
+ST_calculator = ST_Jan22.ST_mycode_new(filters_set, J, L, device='gpu')
 
 ############ DEFINE DATA ARRAY #########
 data = np.empty((30, M, N), dtype=np.float32)
