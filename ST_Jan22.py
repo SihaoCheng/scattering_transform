@@ -184,63 +184,14 @@ class FiltersSet(object):
             morlet_fft : ndarray
                 numpy array of size (M, N)
         """
-        wv = self.gabor_2d(M, N, sigma, theta, xi, slant, offset, fft_shift)
-        wv_modulus = self.gabor_2d(M, N, sigma, theta, 0, slant, offset, fft_shift)
+        wv = self.gabor_2d_mycode(M, N, sigma, theta, xi, slant, offset, fft_shift)
+        wv_modulus = self.gabor_2d_mycode(M, N, sigma, theta, 0, slant, offset, fft_shift)
         K = np.sum(wv) / np.sum(wv_modulus)
 
         mor = wv - K * wv_modulus
         return mor
 
-    # def gabor_2d(self, M, N, sigma, theta, xi, slant=1.0, offset=0, fft_shift=False):
-    #     """
-    #         Computes a 2D Gabor filter.
-    #         A Gabor filter is defined by the following formula in space:
-    #         psi(u) = g_{sigma}(u) e^(i xi^T u)
-    #         where g_{sigma} is a Gaussian envelope and xi is a frequency.
-
-    #         Parameters
-    #         ----------
-    #         M, N : int
-    #             spatial sizes
-    #         sigma : float
-    #             bandwidth parameter
-    #         xi : float
-    #             central frequency (in [0, 1])
-    #         theta : float
-    #             angle in [0, pi]
-    #         slant : float, optional
-    #             parameter which guides the elipsoidal shape of the morlet
-    #         offset : int, optional
-    #             offset by which the signal starts
-    #         fft_shift : boolean
-    #             if true, shift the signal in a numpy style
-
-    #         Returns
-    #         -------
-    #         morlet_fft : ndarray
-    #             numpy array of size (M, N)
-    #     """
-    #     R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], np.float64)
-    #     R_inv = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]], np.float64)
-    #     D = np.array([[1, 0], [0, slant * slant]])
-    #     curv = np.matmul(R, np.matmul(D, R_inv)) / ( 2 * sigma * sigma)
-
-    #     gab = np.zeros((M, N), np.complex128)
-    #     for ex in [-2, -1, 0, 1, 2]:
-    #         for ey in [-2, -1, 0, 1, 2]:
-    #             [xx, yy] = np.mgrid[offset + ex * M:offset + M + ex * M, offset + ey * N:offset + N + ey * N]
-    #             arg = -(curv[0, 0] * xx * xx + (curv[0, 1] + curv[1, 0]) * xx * yy + curv[
-    #                 1, 1] * yy * yy) + 1.j * (xx * xi * np.cos(theta) + yy * xi * np.sin(theta))
-    #             gab = gab + np.exp(arg)
-
-    #     norm_factor = 2 * np.pi * sigma * sigma / slant
-    #     gab = gab / norm_factor
-
-    #     if fft_shift:
-    #         gab = np.fft.fftshift(gab, axes=(0, 1))
-    #     return gab
-
-    def gabor_2d(self, M, N, sigma, theta, xi, slant=1.0, offset=0, fft_shift=False):
+    def gabor_2d_mycode(self, M, N, sigma, theta, xi, slant=1.0, offset=0, fft_shift=False):
         """
             Computes a 2D Gabor filter.
             A Gabor filter is defined by the following formula in space:
