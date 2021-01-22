@@ -11,14 +11,14 @@ class ST_mycode_new(object):
         dtype = filters_set['psi'][0][0].dtype
         self.device = device
         self.filters_set = torch.zeros((J,L,self.M,self.N), dtype=dtype)
-        if device=='gpu':
-            self.filters_set = self.filters_set.cuda()
         if len(filters_set['psi'][0]) == 1:
             for j in range(J):
                 for l in range(L):
                     self.filters_set[j,l] = filters_set['psi'][j*L+l][0]
         else:
             self.filters_set = filters_set['psi']
+        if device=='gpu':
+            self.filters_set = self.filters_set.cuda()
 
     
     def cut_high_k_off(self, data_f, j=2):
@@ -41,7 +41,6 @@ class ST_mycode_new(object):
                 algorithm='classic',):
         M, N = self.M, self.N
         data = torch.from_numpy(data)
-        data_f = torch.fft.fftn(data, dim=(-2,-1))
         N_image = data.shape[0]
         
         S_0 = torch.zeros((N_image,1), dtype=data.dtype)  
@@ -49,11 +48,15 @@ class ST_mycode_new(object):
         S_2 = torch.zeros((N_image,J,L,J,L), dtype=data.dtype)
         S_2_reduced = torch.zeros((N_image,J,J,L), dtype=data.dtype)
         if self.device=='gpu':
+            data = data.cuda()
+            S_0 = S_0.cuda()
             S_1 = S_1.cuda()
             S_2 = S_2.cuda()
             S_2_reduced = S_2_reduced.cuda()
+            
         S_0[:,0] = data.mean((-2,-1))
         
+        data_f = torch.fft.fftn(data, dim=(-2,-1))
         if algorithm == 'classic':
             filters_set = self.filters_set
 
@@ -111,8 +114,9 @@ class ST_mycode_new(object):
                 S_2_reduced[:,:,:,(l2-l1)%L] += S_2[:,:,l1,:,l2]
         S_2_reduced /= L
         
-        S = torch.cat(( S_0, S_1.sum(-1), S_2_reduced.reshape((N_image,-1))  ), 1).numpy()
-        return S, S_0.numpy(), S_1.numpy(), S_2.numpy()
+        S = torch.cat(( S_0, S_1.sum(-1), S_2_reduced.reshape((N_image,-1))  ), 1)
+        # return S.cpu().numpy(), S_0.cpu().numpy(), S_1.cpu().numpy(), S_2.cpu().numpy()
+        return S, S_0, S_1, S_2
 
 
 class FiltersSet(object):
