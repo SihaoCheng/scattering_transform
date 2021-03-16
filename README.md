@@ -43,6 +43,48 @@ The advantages of `kymatio` package are:
 
 Part of my code for generating the Morlet wavelets was copied from the `kymatio` package.
 
-## Examples
+## Example 1
 
-Below, I show some example usage.
+Here I show the basic usage. First generate the Morlet wavelets to be used.
+```python
+J = 8
+L = 4
+M = 512
+N = 512
+
+filter_set = ST.FiltersSet(M, N, J, L)
+```
+You may choose to save these wavelets:
+```python
+save_dir = '#####'
+filter_set.generate_morlet(if_save=True, save_dir=save_dir, precision='single')
+```
+To load filters,
+```python
+filters_set = np.load(save_dir + 'filters_set_mycode_M' + str(M) + 
+    'N' + str(N) + 'J' + str(J) + 'L' + str(L) + '_single.npy',
+    allow_pickle=True)[0]['filters_set']
+```
+Then, define a ST calculator, obtain dataset, and feed them to the calculator:
+```python
+ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu')
+
+input_image = np.empty((30, M, N), dtype=np.float32)
+
+S, S_0, S_1, S_2 = ST_calculator.forward(
+    input_images, J, L, 
+    j1j2_criteria='j2>j1', algorithm='fast'
+)
+
+```
+
+The input data should be a numpy array of images with dimensions (N_image, M, N)
+output are torch tensors with assigned computing device, e.g., cuda() or cpu
+S has dimension (N_image, 1+J+J*J*L), which keeps the (l1-l2) dimension
+S_0 has dimension (N_image, 1)
+S_1 has dimension (N_image, J, L)
+S_2 has dimension (N_image, J, L, J, L)
+j1j2_criteria='j2>j1' assigns which S2 coefficients to calculate. Uncalculated
+coefficients will have values of zero.
+
+Please pay attention that large number of images in a batch (100 in this example) may cause memory problem. In that case just cut it into smaller batchs.
