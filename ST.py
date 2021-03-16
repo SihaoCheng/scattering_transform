@@ -5,7 +5,7 @@ import torch.fft
 # Faster algorithm with almost unchanged results. Updated to PyTorch 1.7.
 # Also updated the function for generating wavelet filters, which is much faster now.
 
-class ST_mycode_new(object):
+class ST_2D(object):
     def __init__(self, filters_set, J, L, device='cpu'):
         self.M, self.N = filters_set['psi'][0][0].shape
         dtype = filters_set['psi'][0][0].dtype
