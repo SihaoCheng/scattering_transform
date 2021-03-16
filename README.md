@@ -85,7 +85,7 @@ S, S_0, S_1, S_2 = ST_calculator.forward(
 
 The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in assigned computing device, e.g., cuda() or cpu.
 
-S has dimension (N_image, 1+J+J$^2$L), which keeps the (l1-l2) dimension.
+S has dimension (N_image, 1 + J + JxJxL), which keeps the (l1-l2) dimension.
 
 S_0 has dimension (N_image, 1)
 
