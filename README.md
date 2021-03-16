@@ -82,7 +82,7 @@ S, S_0, S_1, S_2 = ST_calculator.forward(
 
 ```
 
-The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in assigned computing device, e.g., cuda() or cpu.
+The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in assigned computing device, e.g., cuda() or cpu. Parallele calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (100 in this example) may cause memory problem. In that case just cut it into smaller batchs. When using CPUs, one may also consider to feed 1 image in each batch, and use the 'multiprocessing' package for parallel computation.
 
 S has dimension (N_image, 1 + J + JxJxL), which keeps the (l1-l2) dimension.
 
@@ -95,4 +95,3 @@ S_2 has dimension (N_image, J, L, J, L)
 j1j2_criteria='j2>j1' assigns which S2 coefficients to calculate. Uncalculated
 coefficients will have values of zero.
 
-Please pay attention that large number of images in a batch (100 in this example) may cause memory problem. In that case just cut it into smaller batchs.
