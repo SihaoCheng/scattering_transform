@@ -64,9 +64,8 @@ filter_set.generate_morlet(
 To load filters,
 ```python
 filters_set = np.load(
-    save_dir + 'filters_set_mycode_M' + str(M) + 
-    'N' + str(N) + 'J' + str(J) + 'L' + str(L) + 
-    '_single.npy',
+    save_dir + 'filters_set_M' + str(M) + 'N' + str(N) + 
+    'J' + str(J) + 'L' + str(L) + '_single.npy',
     allow_pickle=True
 )[0]['filters_set']
 ```
