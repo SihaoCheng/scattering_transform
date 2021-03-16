@@ -1,25 +1,27 @@
 import numpy as np
 import torch
-import ST_Jan22
+import ST
 
 J = 8
 L = 4
 M = 512
 N = 512
 
-f = ST_Jan22.FiltersSet(M, N, J, L)
+filter_set = ST.FiltersSet(M, N, J, L)
 
 # generate and save morlet filter bank. "single" means single precision
 save_dir = '#####'
-f.generate_morlet(if_save=True, save_dir=save_dir, precision='single')
+filter_set.generate_morlet(if_save=True, save_dir=save_dir, precision='single')
 
 # load filter bank
-filters_set = np.load(save_dir + 'filters_set_mycode_M' + str(M) + 
-    'N' + str(N) + 'J' + str(J) + 'L' + str(L) + '_single.npy',
-    allow_pickle=True)[0]['filters_set']
+filters_set = np.load(
+    save_dir + 'filters_set_M' + str(M) + 'N' + str(N) + 
+    'J' + str(J) + 'L' + str(L) + '_single.npy',
+    allow_pickle=True
+)[0]['filters_set']
 
 # define ST calculator
-ST_calculator = ST_Jan22.ST_mycode_new(filters_set, J, L, device='gpu')
+ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu')
 
 ############ DEFINE DATA ARRAY #########
 data = np.empty((30, M, N), dtype=np.float32)
@@ -35,4 +37,5 @@ data = np.empty((30, M, N), dtype=np.float32)
 # coefficients will have values of zero.
 
 S, S_0, S_1, S_2 = ST_calculator.forward(
-  data, J, L, j1j2_criteria='j2>j1', algorithm='fast')
+  data, J, L, j1j2_criteria='j2>j1', algorithm='fast'
+)
