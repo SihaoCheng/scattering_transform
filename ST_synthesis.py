@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.fft
-
+# The only different between this script and ST.py is that this script comments line 45.
 # Faster algorithm with almost unchanged results. Updated to PyTorch 1.7.
 # Also updated the function for generating wavelet filters, which is much faster now.
 
