@@ -60,6 +60,7 @@ class ST_2D(object):
             S_2_reduced = S_2_reduced.cuda()
             if weight is not None:
                 weight = weight.cuda()
+        
         # 0th-order ST coefficient: S0
         if weight is None:
             S_0[:,0] = data.mean((-2,-1))
