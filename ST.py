@@ -60,13 +60,17 @@ class ST_2D(object):
             S_2_reduced = S_2_reduced.cuda()
             if weight is not None:
                 weight = weight.cuda()
-            
-        S_0[:,0] = data.mean((-2,-1))
+        # 0th-order ST coefficient: S0
+        if weight is None:
+            S_0[:,0] = data.mean((-2,-1))
+        else:
+            S_0[:,0] = (data * weight[None,:,:]).mean((-2,-1))
         
         data_f = torch.fft.fftn(data, dim=(-2,-1))
         if algorithm == 'classic':
             filters_set = self.filters_set
-
+            
+            # 1st-order ST coefficient: S1(j1,l1)
             I_1_temp  = torch.fft.ifftn(
                 data_f[:,None,None,:,:] * filters_set[None,:,:,:,:],
                 dim=(-2,-1),
@@ -75,7 +79,8 @@ class ST_2D(object):
                 S_1 = I_1_temp.mean((-2,-1))
             else:
                 S_1 = (I_1_temp * weight[None,None,None,:,:]).mean((-2,-1))
-
+            
+            # 2nd-order ST coefficient: S2(j1,l1,j2,l2)
             I_1_temp_f = torch.fft.fftn(I_1_temp, dim=(-2,-1))
             for j1 in np.arange(J):
                 for j2 in np.arange(J):
@@ -107,6 +112,8 @@ class ST_2D(object):
                     wavelet_f = self.filters_set[j1]
                     weight_downsample = weight
                 _, M1, N1 = wavelet_f.shape
+                
+                # 1st-order ST coefficient: S2(j1,l1)
                 I_1_temp  = torch.fft.ifftn(
                     data_f_small[:,None,:,:] * wavelet_f[None,:,:,:],
                     dim=(-2,-1),
@@ -118,6 +125,7 @@ class ST_2D(object):
                         I_1_temp * weight_downsample[None,None,:,:]
                     ).mean((-2,-1))* M1*N1/M/N
                 
+                # 2nd-order ST coefficient: S2(j1,l1,j2,l2)
                 I_1_temp_f = torch.fft.fftn(I_1_temp, dim=(-2,-1))
                 for j2 in np.arange(J):
                     if eval(j1j2_criteria):
@@ -142,14 +150,14 @@ class ST_2D(object):
                             S_2[:,j1,:,j2,:] = (
                                 I_2_temp * weight_downsample[None,None,None:,:]
                             ).mean((-2,-1)) * M2*N2/M/N                            
-
+        
+        # reduced 2nd-order ST coefficients: S2(j1,j2,l1-l2)
         for l1 in range(L):
             for l2 in range(L):
                 S_2_reduced[:,:,:,(l2-l1)%L] += S_2[:,:,l1,:,l2]
         S_2_reduced /= L
         
         S = torch.cat(( S_0, S_1.sum(-1), S_2_reduced.reshape((N_image,-1))  ), 1)
-        # return S.cpu().numpy(), S_0.cpu().numpy(), S_1.cpu().numpy(), S_2.cpu().numpy()
         return S, S_0, S_1, S_2
 
 
