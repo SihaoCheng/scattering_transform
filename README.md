@@ -35,7 +35,7 @@ However, there are also several practical differences. The advantages of my `ST.
 1. When the image size is dyadic, such as 256x128 pixels, I provide a fast algorithm with a speeds-up factor of 5;
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
-4. It uses pytorch >= 1.7, which is better optimized. My code for generating wavelets is also faster.
+4. It uses pytorch = 1.7, which is better optimized for FFT. My code for generating wavelets is also faster.
 
 The advantages of `kymatio` package are:
 1. It allows for calculating local scattering coefficients.
