@@ -4,7 +4,7 @@ layout: default
 
 ## The need for better statistics
 Quantifying textures and patterns in a field requires a statistical vocabulary. 
-The power spectrum, although widely used for a number of reasons, extracts only limited information from a field.
+The power spectrum, although widely used for a number of good reasons, extracts only limited information from a field.
 Below, I show two fields with very different textures and features but exactly the same power spectrum.
 To distinguish them, one needs to go beyond power spectrum!
 <br>
