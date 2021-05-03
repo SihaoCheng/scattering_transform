@@ -32,7 +32,7 @@ However, there are several practical differences. The advantages of my `ST.py` m
 1. I provide an option of using a fast algorithm, which can speed up about 5 times (depending on the size of image);
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
-4. It uses pytorch = 1.7, which is better optimized for FFT. 
+4. It uses pytorch >= 1.7, which is better optimized for FFT. 
 5. It generates wavelets much faster, with a small optimization.
 
 The advantages of `kymatio` package are:
@@ -84,6 +84,10 @@ S_0 has dimension (N_image, 1)
 S_1 has dimension (N_image, J, L)
 
 S_2 has dimension (N_image, J, L, J, L)
+
+E has dimension (N_image, J, L), it is the power in each 1st-order wavelet bands
+
+E_residual has dimension (N_image, J, L, J, L), it is the residual power in the 2nd-order scattering fields, which is the residual power not extracted by the scattering coefficients.
 
 j1j2_criteria='j2>j1' assigns which S2 coefficients to calculate. Uncalculated
 coefficients will have values of zero.
