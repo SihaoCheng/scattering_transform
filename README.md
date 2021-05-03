@@ -2,29 +2,29 @@
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information, particularly about non-Gaussian textures which are ubiquitous in astronomical/physical data.
 
-Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). Everything you need is in one python script: `ST.py`, which depends only on two packages: `numpy, torch = 1.7`. 
+Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7`. 
 
-It can do the following things:
-1. Create the 2D wavelets to be used in scattering transform;
-2. Calculate the scattering coefficients of 2D fields (images).
-The codes for 1D or 3D cases are in working progress.
+This `ST` module can do the following:
+1. Creating the 2D wavelets to be used in scattering transform;
+2. Calculating the scattering coefficients of 2D fields (images).
+Codes for 1D or 3D cases are in working progress.
 
 For questions or suggestions or comments, please do not hesitate to contact me: s.cheng@jhu.edu
 
 ## Install
-Please download the script `ST.py` to one of the system paths of your pytho. Or, you can download the script `ST.py` to a folder and add the folder to system paths: 
+Please download the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
 ```python
 import sys
 sys.path.append('~/where/you/download/the/script/')
 ``` 
-Then, simply import it in python 3:
+Then, simply import it:
 ```python
 import ST
 ```
 
 ## Comparison to `kymatio`
 
-There is another python package called `kymatio`, which is also dedicated to performing the scattering transform. The two modules are similar in general -- both of them can do:
+There is another python package called `kymatio` also dedicated to the scattering transform. The two modules are similar in general -- both of them can do:
 1. calculate scattering coefficients for a batch of images;
 2. switching between CPU/GPU calculation.
 
@@ -38,9 +38,7 @@ However, there are several practical differences. The advantages of my `ST.py` m
 The advantages of `kymatio` package are:
 1. It allows for calculating local scattering coefficients.
 2. It also contains codes for 1D and 3D applications.
-Nevertheless, I am also working on adding these functions to my code.
-
-Part of my code for generating the Morlet wavelets was copied from the `kymatio` package.
+(I am working on adding these functions to my code. Also, part of my code for generating the Morlet wavelets was copied from the `kymatio` package.)
 
 ## Example 1
 
