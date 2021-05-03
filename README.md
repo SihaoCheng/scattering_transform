@@ -2,7 +2,7 @@
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information than the power spectrum, particularly about non-Gaussian textures, which are ubiquitous in astronomical/physical data.
 
-Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). Everything you need is in one python script: `ST.py`. Several older versions are also available, with time in the filename (such as `ST_Jan22.py`). The module depends only on the following packages: 
+Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). Everything you need is in one python script: `ST.py`. Older versions are also available, with time-stamp in the filename (such as `ST_Jan22.py`). The module depends only on the following packages: 
 `numpy, torch = 1.7`. 
 
 It can do the following things:
@@ -13,33 +13,33 @@ The codes for 1D or 3D cases are in working progress.
 For questions or suggestions or comments, please do not hesitate to contact me: s.cheng@jhu.edu
 
 ## Install
-Please download the script `ST.py` to one of the system paths of your python, and then simply import it in python 3:
-```python
-import ST
-```
-Of course, you can add any paths to the system paths. Just add
+Please download the script `ST.py` to one of the system paths of your pytho. Or, you can download the script `ST.py` to a folder and add the folder to system paths: 
 ```python
 import sys
 sys.path.append('~/where/you/download/the/script/')
-print(sys.path)
+``` 
+Then, simply import it in python 3:
+```python
+import ST
 ```
-before importing `ST`.
 
 ## Comparison to `kymatio`
 
-There is another python package called `kymatio`, which is also dedicated to performing the scattering transform and is much more formal. The two modules are similar in general. Both my `ST.py` module and the `kymatio` package can do:
-1. calculate scattering coefficients for a batch of image;
+There is another python package called `kymatio`, which is also dedicated to performing the scattering transform. The two modules are similar in general -- both of them can do:
+1. calculate scattering coefficients for a batch of images;
 2. switching between CPU/GPU calculation.
 
-However, there are also several practical differences. The advantages of my `ST.py` module are:
-1. When the image size is dyadic, such as 256x128 pixels, I provide a fast algorithm with a speeds-up factor of 5;
+However, there are several practical differences. The advantages of my `ST.py` module are:
+1. I provide an option of using a fast algorithm, which can speed up 5 times or more (depending on the size of image);
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
-4. It uses pytorch = 1.7, which is better optimized for FFT. My code for generating wavelets is also faster.
+4. It uses pytorch = 1.7, which is better optimized for FFT. 
+5. It generates wavelets much faster, with a small optimization.
 
 The advantages of `kymatio` package are:
 1. It allows for calculating local scattering coefficients.
 2. It also contains codes for 1D and 3D applications.
+Nevertheless, I am also working on adding these functions to my code.
 
 Part of my code for generating the Morlet wavelets was copied from the `kymatio` package.
 
@@ -69,20 +69,20 @@ filters_set = np.load(
     allow_pickle=True
 )[0]['filters_set']
 ```
-Then, define a ST calculator, obtain dataset, and feed them to the calculator:
+Then, define a ST calculator and feed it with images:
 ```python
-ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu')
+ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu', weight=None)
 
 input_image = np.empty((30, M, N), dtype=np.float32)
 
 S, S_0, S_1, S_2 = ST_calculator.forward(
-    input_images, J, L, 
-    j1j2_criteria='j2>j1', algorithm='fast'
+    input_images, J, L, algorithm='fast'
 )
-
 ```
 
-The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in assigned computing device, e.g., cuda() or cpu. Parallele calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (30 in this example) may cause memory problem. In that case just cut it into smaller batchs. When using CPUs, one may also consider to feed 1 image in each batch, and use the 'multiprocessing' package for parallel computation.
+The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in the assigned computing device, e.g., cuda() or cpu. Parallel calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (30 in this example) may cause memory problem. In that case just cut the image set into smaller batches. 
+
+When using CPUs, one may also consider to feed 1 image in each batch, and use the 'multiprocessing' package for parallel computation.
 
 S has dimension (N_image, 1 + J + JxJxL), which keeps the (l1-l2) dimension.
 
