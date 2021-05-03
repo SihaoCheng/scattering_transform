@@ -2,7 +2,7 @@
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information, particularly about non-Gaussian textures which are ubiquitous in astronomical/physical data.
 
-Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). Everything you need is in one python script: `ST.py`. Older versions are also available, with time-stamp in the filename (such as `ST_Jan22.py`). The module depends only on the following packages: 
+Here I provide a python 3 module to calculate the scattering coefficients of 2D fields (images). Everything you need is in one python script: `ST.py`. The module depends only on the following packages: 
 `numpy, torch = 1.7`. 
 
 It can do the following things:
