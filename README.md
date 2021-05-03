@@ -29,7 +29,7 @@ There is another python package called `kymatio` also dedicated to the scatterin
 2. switching between CPU/GPU calculation.
 
 However, there are several practical differences. The advantages of my `ST.py` module are:
-1. I provide an option of using a fast algorithm, which can speed up 5 times or more (depending on the size of image);
+1. I provide an option of using a fast algorithm, which can speed up about 5 times (depending on the size of image);
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
 4. It uses pytorch = 1.7, which is better optimized for FFT. 
