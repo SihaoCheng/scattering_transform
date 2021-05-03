@@ -464,6 +464,9 @@ class Bispectrum_Calculator(object):
 
         
     def forward(self, image):
+        if type(image) == np.ndarray:
+            image = torch.from_numpy(image)
+
         B_array = torch.zeros(
             (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
             dtype=image.dtype
