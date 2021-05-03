@@ -96,7 +96,7 @@ class ST_2D(object):
             Calculates the scattering coefficients for a set of images.
             Parameters
             ----------
-            data : numpy array
+            data : numpy array or torch tensor
                 image set, with size [N_image, x-sidelength, y-sidelength]
             J, L : int
                 the number of scales and angles for calculation
@@ -114,19 +114,19 @@ class ST_2D(object):
                 order ST will become some 2^n point functions.
             Returns
             -------
-            S : torch array
+            S : torch tensor
                 reduced ST coef (averaged over angles), flattened, with size
                 [N_image, 1 + J + J*J*L]
-            S0 : torch array
+            S0 : torch tensor
                 0th order ST coefficients, with size [N_image, 1]
-            S1 : torch array
+            S1 : torch tensor
                 1st order ST coefficients, with size [N_image, J, L]
-            S2 : torch array
+            S2 : torch tensor
                 2nd order ST coefficients, with size [N_image, J, L, J, L]
-            E : torch array
+            E : torch tensor
                 power in each 1st-order wavelet bands, with size 
                 [N_image, J, L]
-            E_residual: torch array
+            E_residual: torch tensor
                 residual power in the 2nd-order scattering fields, which is 
                 the residual power not extracted by the scattering coefficients.
                 it has a size of [N_image, J, L, J, L].
@@ -138,7 +138,8 @@ class ST_2D(object):
         weight = self.weight
 
         # convert numpy array input into torch tensors
-        data = torch.from_numpy(data)
+        if type(data) == np.ndarray:
+            data = torch.from_numpy(data)
 
         # initialize tensors for scattering coefficients
         S0 = torch.zeros((N_image,1), dtype=data.dtype)  
