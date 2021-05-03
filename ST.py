@@ -426,3 +426,145 @@ def reduced_ST(S, J, L):
     j2 = (np.arange(J)[None,:] + np.zeros(J)[:,None]).flatten()
     j1j2 = np.concatenate((j1[None, select], j2[None, select]), axis=0)
     return s0, s1, s21, s22, s2, j1j2
+
+
+class Bispectrum_Calculator(object):
+    def __init__(self, k_range, M, N, device='cpu'):
+        self.device = device
+        self.k_range = k_range
+        self.M = M
+        self.N = N
+        X, Y = np.meshgrid(np.arange(M), np.arange(N))
+        d = ((X-M//2)**2+(Y-N//2)**2)**0.5
+        
+        self.k_filters = np.zeros((len(k_range)-1, M, N), dtype=bool)
+        for i in range(len(k_range)-1):
+            self.k_filters[i,:,:] = np.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
+        self.k_filters_torch = torch.from_numpy(self.k_filters)
+        refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1)).real
+        
+        self.select = torch.zeros(
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
+            dtype=bool
+        )
+        self.B_ref_array = torch.zeros(
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1),
+            dtype=torch.float32
+        )
+        for i1 in range(len(self.k_range)-1):
+            for i2 in range(i1+1):
+                for i3 in range(i2+1):
+                    if i2 + i3 >= i1 :
+                        self.select[i1, i2, i3] = True
+                        self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean()
+        if device=='gpu':
+            self.k_filters_torch = self.k_filters_torch.cuda()
+            self.select = self.select.cuda()
+            self.B_ref_array = self.B_ref_array.cuda()
+
+        
+    def forward(self, image):
+        B_array = torch.zeros(
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
+            dtype=image.dtype
+        )
+        if self.device=='gpu':
+            B_array = B_array.cuda()
+        image_f = torch.fft.fftn(image, dim=(-2,-1))
+        convs = torch.fft.ifftn(
+            image_f[None,...] * self.k_filters_torch,
+            dim=(-2,-1)
+        ).real
+        convs_std = convs.std((-1,-2))
+        for i1 in range(len(self.k_range)-1):
+            for i2 in range(i1+1):
+                for i3 in range(i2+1):
+                    if i2 + i3 >= i1 :
+                        B = convs[i1] * convs[i2] * convs[i3]
+                        B_array[i1, i2, i3] = B.mean() *1e8 # / self.B_ref_array[i1, i2, i3]
+        return B_array[self.select]
+        
+        
+def get_power_spectrum(target, bins, device='cpu'):
+    '''
+    get the power spectrum of a given image
+    '''
+    M, N = target.shape
+    modulus = torch.fft.fftn(target, dim=(-2,-1)).abs()
+    
+    modulus = torch.cat(
+        ( torch.cat(( modulus[M//2:, N//2:], modulus[:M//2, N//2:] ), 0),
+          torch.cat(( modulus[M//2:, :N//2], modulus[:M//2, :N//2] ), 0)
+        ),1)
+    X = torch.arange(0,M)
+    Y = torch.arange(0,N)
+    Ygrid, Xgrid = torch.meshgrid(Y,X)
+    R = ((Xgrid - M/2)**2 + (Ygrid - N/2)**2)**0.5
+
+    R_range = torch.logspace(0.0, np.log10(1.4*M/2), bins)
+    R_range = torch.cat((torch.tensor([0]), R_range))
+    power_spectrum = torch.zeros(len(R_range)-1, dtype=target.dtype)
+    if device=='gpu':
+        R = R.cuda()
+        R_range = R_range.cuda()
+        power_spectrum = power_spectrum.cuda()
+
+    for i in range(len(R_range)-1):
+        select = (R >= R_range[i]) * (R < R_range[i+1])
+        power_spectrum[i] = modulus[select].mean()
+    return power_spectrum, R_range
+    
+    
+def get_random_data(target, M, N, mode='image'):
+    '''
+    get a gaussian random field with the same power spectrum as the image 'target' (in the 'image' mode),
+    or with an assigned power spectrum function 'target' (in the 'func' mode).
+    '''
+    
+    if mode == 'func':
+        random_phase = np.random.normal(0,1,(M//2-1,N-1)) + np.random.normal(0,1,(M//2-1,N-1))*1j
+        random_phase_left = (np.random.normal(0,1,(M//2-1)) + np.random.normal(0,1,(M//2-1))*1j)[:,None]
+        random_phase_top = (np.random.normal(0,1,(N//2-1)) + np.random.normal(0,1,(N//2-1))*1j)[None,:]
+        random_phase_middle = (np.random.normal(0,1,(N//2-1)) + np.random.normal(0,1,(N//2-1))*1j)[None,:]
+        random_phase_corners = np.random.normal(0,1,3)
+    if mode == 'image':
+        random_phase = np.random.rand(M//2-1,N-1)
+        random_phase_left = np.random.rand(M//2-1)[:,None]
+        random_phase_top = np.random.rand(N//2-1)[None,:]
+        random_phase_middle = np.random.rand(N//2-1)[None,:]
+        random_phase_corners = np.random.randint(0,2,3)/2
+    gaussian_phase = np.concatenate((
+                      np.concatenate((random_phase_corners[1][None,None],
+                                      random_phase_left,
+                                      random_phase_corners[2][None,None],
+                                      -random_phase_left[::-1,:],
+                                    ),axis=0),
+                      np.concatenate((np.concatenate((random_phase_top,
+                                                      random_phase_corners[0][None,None],
+                                                      -random_phase_top[:,::-1],
+                                                    ),axis=1),
+                                      random_phase, 
+                                      np.concatenate((random_phase_middle, 
+                                                      np.array(0)[None,None], 
+                                                      -random_phase_middle[:,::-1],
+                                                    ),axis=1), 
+                                      -random_phase[::-1,::-1],
+                                    ),axis=0),
+                                    ),axis=1)
+    
+
+    if mode == 'image':
+        gaussian_modulus = np.abs(np.fft.fftshift(np.fft.fft2(target)))
+        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus*np.exp(1j*2*np.pi*gaussian_phase)))
+    if mode == 'func':
+        X = np.arange(0,M)
+        Y = np.arange(0,N)
+        Xgrid, Ygrid = np.meshgrid(X,Y)
+        R = ((Xgrid-M/2)**2+(Ygrid-N/2)**2)**0.5
+        gaussian_modulus = target(R)
+        gaussian_modulus[M//2, N//2] = 0
+        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus*gaussian_phase))
+        
+    data = np.fft.fftshift(np.real(gaussian_field))
+    return data
+
