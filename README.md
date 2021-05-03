@@ -49,16 +49,12 @@ L = 4
 M = 512
 N = 512
 
-filter_set = ST.FiltersSet(M, N, J, L)
-```
-You may choose to save these wavelets:
-```python
 save_dir = '#####'
-filter_set.generate_morlet(
+filter_set = ST.FiltersSet(M, N, J, L).filter_set.generate_morlet(
     if_save=True, save_dir=save_dir, precision='single'
 )
 ```
-To load filters,
+You may choose to save these wavelets and load them later:
 ```python
 filters_set = np.load(
     save_dir + 'filters_set_M' + str(M) + 'N' + str(N) + 
@@ -79,7 +75,7 @@ S, S_0, S_1, S_2 = ST_calculator.forward(
 
 The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in the assigned computing device, e.g., cuda() or cpu. Parallel calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (30 in this example) may cause memory problem. In that case just cut the image set into smaller batches. 
 
-When using CPUs, one may also consider to feed 1 image in each batch, and use the 'multiprocessing' package for parallel computation.
+When using CPUs, one may also consider to feed 1 image (with size [1, M, N]) in each batch, and use the 'multiprocessing' package for parallel computation.
 
 S has dimension (N_image, 1 + J + JxJxL), which keeps the (l1-l2) dimension.
 
