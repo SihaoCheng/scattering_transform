@@ -42,7 +42,7 @@ The advantages of `kymatio` package are:
 
 ## Example 1
 
-Here I show the basic usage. First generate the Morlet wavelets to be used.
+Here I show the basic usage. First, generate the Morlet wavelets to be used.
 ```python
 J = 8
 L = 4
