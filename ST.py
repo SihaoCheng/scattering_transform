@@ -297,8 +297,7 @@ class FiltersSet(object):
                 + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
                 np.array([{'filters_set': filters_set}])
             )
-        else:
-            return filters_set
+        return filters_set
 
     def morlet_2d(self, M, N, sigma, theta, xi, slant=0.5, offset=0, fft_shift=False):
         """
