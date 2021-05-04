@@ -73,7 +73,7 @@ S, S_0, S_1, S_2 = ST_calculator.forward(
 )
 ```
 
-The input data should be a numpy array of images with dimensions (N_image, M, N). Output are torch tensors in the assigned computing device, e.g., cuda() or cpu. Parallel calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (30 in this example) may cause memory problem. In that case just cut the image set into smaller batches. 
+The input data should be a numpy array or torch tensor of images with dimensions (N_image, M, N). Output are torch tensors in the assigned computing device, e.g., cuda() or cpu. Parallel calculation is automatically implemented by `torch`, for both cpu and gpu. Please pay attention that large number of images in a batch (30 in this example) may cause memory problem. In that case just cut the image set into smaller batches. 
 
 When using CPUs, one may also consider to feed 1 image (with size [1, M, N]) in each batch, and use the 'multiprocessing' package for parallel computation.
 
