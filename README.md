@@ -50,7 +50,7 @@ M = 512
 N = 512
 
 save_dir = '#####'
-filter_set = ST.FiltersSet(M, N, J, L).filter_set.generate_morlet(
+filter_set = ST.FiltersSet(M, N, J, L).generate_morlet(
     if_save=True, save_dir=save_dir, precision='single'
 )
 ```
