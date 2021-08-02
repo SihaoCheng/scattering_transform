@@ -56,7 +56,7 @@ filter_set = ST.FiltersSet(M, N, J, L).generate_morlet(
 ```
 You may choose to save these wavelets and load them later:
 ```python
-filters_set = np.load(
+filter_set = np.load(
     save_dir + 'filters_set_M' + str(M) + 'N' + str(N) + 
     'J' + str(J) + 'L' + str(L) + '_single.npy',
     allow_pickle=True
@@ -64,9 +64,9 @@ filters_set = np.load(
 ```
 Then, define a ST calculator and feed it with images:
 ```python
-ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu', weight=None)
+ST_calculator = ST.ST_2D(filter_set, J, L, device='gpu', weight=None)
 
-input_image = np.empty((30, M, N), dtype=np.float32)
+input_images = np.empty((30, M, N), dtype=np.float32)
 
 S, S_0, S_1, S_2 = ST_calculator.forward(
     input_images, J, L, algorithm='fast'
