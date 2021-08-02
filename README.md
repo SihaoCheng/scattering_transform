@@ -68,7 +68,7 @@ ST_calculator = ST.ST_2D(filter_set, J, L, device='gpu', weight=None)
 
 input_images = np.empty((30, M, N), dtype=np.float32)
 
-S, S_0, S_1, S_2 = ST_calculator.forward(
+S, S_0, S_1, S_2, E, E_residual = ST_calculator.forward(
     input_images, J, L, algorithm='fast'
 )
 ```
