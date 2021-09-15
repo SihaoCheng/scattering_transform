@@ -12,7 +12,7 @@ Codes for 1D or 3D cases are in working progress.
 For questions or suggestions or comments, please do not hesitate to contact me: s.cheng@jhu.edu
 
 ## Install
-Please download the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
+Please download (only) the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
 ```python
 import sys
 sys.path.append('~/where/you/download/the/script/')
