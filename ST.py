@@ -1,4 +1,9 @@
 # Updates:
+# Aug 27, 2021: 
+# adding 1D scattering transform
+#
+#
+#
 # May 3, 2021: 
 # 1. Updated the 'fast algorithm', which now can be used on images
 #    with arbitary sizes. The fractional difference between the 
@@ -84,10 +89,12 @@ class ST_2D(object):
             ),-1)
         return result
 
+
     def get_dxdy(self, j):
         dx = int(max( 16, min( np.ceil(self.M/2**j), self.M//2 ) ))
         dy = int(max( 16, min( np.ceil(self.N/2**j), self.N//2 ) ))
         return dx, dy
+    
 
     def forward(self, data, J, L, algorithm='classic',
                 j1j2_criteria='j2>j1', pseudo_coef=1,
@@ -571,3 +578,338 @@ def get_random_data(target, M, N, mode='image'):
     data = np.fft.fftshift(np.real(gaussian_field))
     return data
 
+
+
+# Updates:
+# Aug 27, 2021: 
+# adding 1D scattering transform
+
+class ST_1D(object):
+    def __init__(self, filters_set, J, device='cpu', weight=None):
+        self.M = len(filters_set['psi'][0])
+        dtype = filters_set['psi'][0].dtype
+        # filters set
+        self.filters_set = torch.zeros((J,self.M), dtype=dtype)
+        if len(filters_set['psi'][0]) == 1:
+            for j in range(J):
+                    self.filters_set[j] = filters_set['psi'][j]
+        else:
+            self.filters_set = filters_set['psi']
+        # weight
+        if weight is None:
+            self.weight = None
+            self.weight_f = None
+        else:
+            if self.M!=weight.shape[0]:
+                print('"weight" must have the same image size as filters in "filters_set".')
+            self.weight = torch.from_numpy(weight / weight.mean())
+            self.weight_f = torch.fft.fftn(self.weight, dim=-1)
+            self.weight_downsample_list = []
+            for j in np.arange(J):
+                dx = self.get_dx(j)
+                weight_downsample = torch.fft.ifftn(
+                    self.cut_high_k_off_1d(self.weight_f, dx, None),
+                    dim=-1
+                ).real
+                if device=='gpu':
+                    weight_downsample = weight_downsample.cuda()
+                self.weight_downsample_list.append(
+                    weight_downsample / weight_downsample.mean()
+                )
+        # device
+        self.device = device
+        if device=='gpu':
+            self.filters_set = self.filters_set.cuda()
+            if weight is not None:
+                self.weight = self.weight.cuda()
+
+
+    def cut_high_k_off_1d(self, data_f, dx):
+        if_xodd = (self.M%2==1)
+        result = torch.cat(
+            ( data_f[...,:dx+if_xodd] , data_f[...,-dx:]
+            ), -1
+        )
+        return result
+
+
+    def get_dx(self, j):
+        dx = int(max( 16, min( np.ceil(self.M/2**j), self.M//2 ) ))
+        return dx
+
+
+    def forward(self, data, J, algorithm='classic',
+                j1j2_criteria='j2>j1', pseudo_coef=1,
+                ):
+        '''
+            Calculates the scattering coefficients for a set of images.
+            Parameters
+            ----------
+            data : numpy array or torch tensor
+                image set, with size [N_image, x-sidelength, y-sidelength]
+            J    : int
+                the number of scales for calculation
+            algorithm: 'classic' or 'fast', optional
+                'classic' uses the full Fourier space to calculate every
+                scattering coefficients.
+                'fast' uses only the inner part of the Fourier space to 
+                calculate the large-scale scattering coefficients.
+            j1j2_criteria : str, optional
+                which S2 coefficients to calculate. Default is 'j2>j1'. 
+            pseudo_coef : float/int, optional
+                the power of modulus. This allows for a modification of 
+                the scattering transform. For standard ST, it should be 
+                one, which is also the default. When it is 2, the n-th
+                order ST will become some 2^n point functions.
+            Returns
+            -------
+            S : torch tensor
+                ST coef, flattened, with size [N_image, 1 + J + J*J]
+            S0 : torch tensor
+                0th order ST coefficients, with size [N_image, 1]
+            S1 : torch tensor
+                1st order ST coefficients, with size [N_image, J,]
+            S2 : torch tensor
+                2nd order ST coefficients, with size [N_image, J, J]
+            E : torch tensor
+                power in each 1st-order wavelet bands, with size 
+                [N_image, J]
+            E_residual: torch tensor
+                residual power in the 2nd-order scattering fields, which is 
+                the residual power not extracted by the scattering coefficients.
+                it has a size of [N_image, J, J].
+
+        '''
+        M = self.M
+        N_image = data.shape[0]
+        filters_set = self.filters_set
+        weight = self.weight
+
+        # convert numpy array input into torch tensors
+        if type(data) == np.ndarray:
+            data = torch.from_numpy(data)
+
+        # initialize tensors for scattering coefficients
+        S0 = torch.zeros((N_image,1), dtype=data.dtype)  
+        S1 = torch.zeros((N_image,J), dtype=data.dtype)
+        S2 = torch.zeros((N_image,J,J), dtype=data.dtype)
+        E = torch.zeros((N_image,J), dtype=data.dtype)
+        E_residual = torch.zeros((N_image,J,J), dtype=data.dtype)
+        
+        # move torch tensors to gpu device, if required
+        if self.device=='gpu':
+            data = data.cuda()
+            S0 = S0.cuda()
+            S1 = S1.cuda()
+            S2 = S2.cuda()
+            E = E.cuda()
+            E_residual = E_residual.cuda()
+        
+        # 0th order
+        S0[:,0] = data.mean(-1)
+        
+        # 1st and 2nd order
+        data_f = torch.fft.fftn(data, dim=-1)
+        
+        if algorithm == 'classic':
+            # calculating scattering coefficients, with two Fourier transforms
+            if weight is None:
+                weight_temp = 1
+            else:
+                weight_temp = weight[None,None,:]
+            # 1st-order scattering field
+            I1 = torch.fft.ifftn(
+                data_f[:,None,:] * filters_set[None,:J,:],
+                dim=-1,
+            ).abs()**pseudo_coef
+            # coefficients
+            S1 = (I1 * weight_temp).mean(-1)
+            E = (I1**2 * weight_temp).mean(-1)
+
+            # 2nd order
+            I1_f = torch.fft.fftn(I1, dim=-1)
+            for j1 in np.arange(J):
+                for j2 in np.arange(J):
+                    if eval(j1j2_criteria):
+                        # scattering field
+                        I2_temp = torch.fft.ifftn(
+                            I1_f[:,j1,:] * filters_set[None,j2,:], 
+                            dim=-1,
+                        ).abs()**pseudo_coef
+                        # coefficients
+                        S2[:,j1,j2] = (I2_temp * weight_temp).mean(-1)
+                        E_residual[:,j1,j2] = (
+                            (I2_temp - I2_temp.mean(-1)[:,None])**2 * 
+                            weight_temp
+                        ).mean(-1)
+
+        if algorithm == 'fast':
+            # only use the low-k Fourier coefs when calculating large-j scattering coefs.
+            for j1 in np.arange(J):
+                # 1st order: cut high k
+                dx1 = self.get_dx(j1)
+                data_f_small = self.cut_high_k_off_1d(data_f, dx1)
+                wavelet_f = self.cut_high_k_off_1d(filters_set[j1], dx1)
+                _, M1 = wavelet_f.shape
+                # scattering field
+                I1_temp  = torch.fft.ifftn(
+                    data_f_small[:,None] * wavelet_f[None,:],
+                    dim=-1,
+                ).abs()**pseudo_coef
+                # coefficients
+                if weight is None:
+                    weight_temp = 1
+                else:
+                    weight_temp = self.weight_downsample_list[j1][None,None,:]
+                S1[:,j1] = (I1_temp * weight_temp).mean(-1) * M1/M
+                E[:,j1] = (I1_temp**2 * weight_temp).mean(-1) * (M1/M)**2
+                
+                # 2nd order
+                I1_temp_f = torch.fft.fftn(I1_temp, dim=-1)
+                for j2 in np.arange(J):
+                    if eval(j1j2_criteria):
+                        # cut high k
+                        dx2 = self.get_dx(j2)
+                        I1_temp_f_small = self.cut_high_k_off_1d(I1_temp_f, dx2)
+                        wavelet_f2 = self.cut_high_k_off_1d(filters_set[j2], dx2)
+                        _, M2 = wavelet_f2.shape
+                        # scattering field
+                        I2_temp = torch.fft.ifftn(
+                            I1_temp_f_small[:,:,:] * wavelet_f2[None,None,:], 
+                            dim=-1,
+                        ).abs()**pseudo_coef
+                        # coefficients
+                        if weight is None:
+                            weight_temp = 1
+                        else:
+                            weight_temp = self.weight_downsample_list[j2][None,None,None,:]
+                        S2[:,j1,j2] = (I2_temp * weight_temp).mean(-1) * M2/M
+                        E_residual[:,j1,j2] = (
+                            (I2_temp - I2_temp.mean(-1)[:,:,None,])**2 *
+                            weight_temp
+                        ).mean(-1) * (M2/M)**2
+
+        S = torch.cat(( S0, S1, S2.reshape((N_image,-1))  ), 1)
+        # return S.cpu().numpy(), S0.cpu().numpy(), S1.cpu().numpy(), S2.cpu().numpy(),\
+        #        E.cpu().numpy(), E_residual.cpu().numpy()
+        return S, S0, S1, S2, E, E_residual
+
+
+class FiltersSet_1D(object):
+    def __init__(self, M, J):
+        self.M = M
+        self.J = J
+
+    def generate_morlet(self, if_save=False, save_dir=None, precision='double'):
+        if precision=='double':
+            psi = torch.zeros((self.J, self.M), dtype=torch.float64)
+        if precision=='single':
+            psi = torch.zeros((self.J, self.M), dtype=torch.float32)
+        for j in range(self.J):
+                wavelet = self.morlet_1d(
+                    M=self.M, 
+                    sigma=0.8 * 2**j, 
+                    xi=3.0 / 4.0 * np.pi /2**j,
+                )
+                wavelet_Fourier = np.fft.fft(wavelet)
+                wavelet_Fourier[0] = 0
+                if precision=='double':
+                    psi[j] = torch.from_numpy(wavelet_Fourier.real)
+                if precision=='single':
+                    psi[j] = torch.from_numpy(wavelet_Fourier.real.astype(np.float32))
+        if precision=='double':
+            phi = torch.from_numpy(
+                self.gabor_1d_mycode(self.M, 0.8 * 2**(self.J-1), 0, 0).real
+            )
+        if precision=='single':
+            phi = torch.from_numpy(
+                self.gabor_1d_mycode(self.M, 0.8 * 2**(self.J-1), 0, 0).real.astype(np.float32)
+            )
+        
+        filters_set = {'psi':psi, 'phi':phi}
+        if if_save:
+            np.save(
+                save_dir + 'filters_set_mycode_M' + str(self.M)
+                + 'J' + str(self.J) + '_' + precision + '.npy', 
+                np.array([{'filters_set': filters_set}])
+            )
+        return filters_set
+
+    def morlet_1d(self, M, sigma, xi, offset=0, fft_shift=False):
+        """
+            (from kymatio package) 
+            Computes a 1D Morlet filter.
+            A Morlet filter is the sum of a Gabor filter and a low-pass filter
+            to ensure that the sum has exactly zero mean in the temporal domain.
+            It is defined by the following formula in space:
+            psi(u) = g_{sigma}(u) (e^(i xi^T u) - beta)
+            where g_{sigma} is a Gaussian envelope, xi is a frequency and beta is
+            the cancelling parameter.
+            Parameters
+            ----------
+            M     : int
+                spatial size
+            sigma : float
+                bandwidth parameter
+            xi : float
+                central frequency (in [0, 1])
+            offset : int, optional
+                offset by which the signal starts
+            fft_shift : boolean
+                if true, shift the signal in a numpy style
+            Returns
+            -------
+            morlet_fft : ndarray
+                numpy array of size (M)
+        """
+        wv = self.gabor_1d_mycode(M, sigma, xi, offset, fft_shift)
+        wv_modulus = self.gabor_1d_mycode(M, sigma, 0, offset, fft_shift)
+        K = np.sum(wv) / np.sum(wv_modulus)
+
+        mor = wv - K * wv_modulus
+        return mor
+
+    def gabor_1d_mycode(self, M, sigma, xi, offset=0, fft_shift=False):
+        """
+            (partly from kymatio package)
+            Computes a 1D Gabor filter.
+            A Gabor filter is defined by the following formula in space:
+            psi(u) = g_{sigma}(u) e^(i xi^T u)
+            where g_{sigma} is a Gaussian envelope and xi is a frequency.
+            Parameters
+            ----------
+            M     : int
+                spatial sizes
+            sigma : float
+                bandwidth parameter
+            xi : float
+                central frequency (in [0, 1])
+            offset : int, optional
+                offset by which the signal starts
+            fft_shift : boolean
+                if true, shift the signal in a numpy style
+            Returns
+            -------
+            morlet_fft : ndarray
+                numpy array of size (M, N)
+        """
+        # R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], np.float64)
+        # R_inv = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]], np.float64)
+        # D = np.array([[1, 0], [0, slant * slant]])
+        curv = 1 / ( 2 * sigma * sigma)
+
+        gab = np.zeros(M, np.complex128)
+        xx = np.empty((2, M))
+        
+        for ii, ex in enumerate([-1, 0]):
+            xx[ii] = np.arange(offset + ex * M, offset + M + ex * M)
+        
+        arg = -curv * xx * xx + 1.j * (xx * xi)
+        gab = np.exp(arg).sum(0)
+
+        norm_factor = 2 * np.pi * sigma * sigma
+        gab = gab / norm_factor
+
+        if fft_shift:
+            gab = np.fft.fftshift(gab, axes=0)
+        return gab
