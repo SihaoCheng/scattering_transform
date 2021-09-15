@@ -33,11 +33,11 @@ However, there are several practical differences. The advantages of my `ST.py` m
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
 4. It uses pytorch >= 1.7, which is better optimized for FFT. 
-5. It generates wavelets much faster, with a small optimization.
+5. It generates wavelets much faster, due to a simple optimization in the code.
 
 The advantages of `kymatio` package are:
 1. It allows for calculating local scattering coefficients.
-2. It also contains codes for 1D and 3D applications.
+2. It also contains codes for 3D applications.
 (I am working on adding these functions to my code. Also, part of my code for generating the Morlet wavelets was copied from the `kymatio` package.)
 
 ## Example 1
