@@ -2,17 +2,17 @@
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information, particularly about non-Gaussian textures which are ubiquitous in astronomical/physical data.
 
-Here I provide a python3 module to calculate the scattering coefficients of 2D fields (images). It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7+`. 
+Here I provide a python3 module to calculate the scattering coefficients of 1D signals or 2D fields (images). It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7+`. 
 
 This `ST` module can do the following:
-1. Creating the 2D wavelets to be used in scattering transform;
-2. Calculating the scattering coefficients of 2D fields (images).
-Codes for 1D or 3D cases are in working progress.
+1. Creating the 1D or 2D wavelets to be used in scattering transform;
+2. Calculating the scattering coefficients of 1D signals or 2D fields (images).
+Codes for 3D cases are in working progress.
 
 For questions or suggestions or comments, please do not hesitate to contact me: s.cheng@jhu.edu
 
 ## Install
-Please download the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
+Please download (only) the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
 ```python
 import sys
 sys.path.append('~/where/you/download/the/script/')
@@ -33,11 +33,11 @@ However, there are several practical differences. The advantages of my `ST.py` m
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
 4. It uses pytorch >= 1.7, which is better optimized for FFT. 
-5. It generates wavelets much faster, with a small optimization.
+5. It generates wavelets much faster, due to a simple optimization in the code.
 
 The advantages of `kymatio` package are:
 1. It allows for calculating local scattering coefficients.
-2. It also contains codes for 1D and 3D applications.
+2. It also contains codes for 3D applications.
 (I am working on adding these functions to my code. Also, part of my code for generating the Morlet wavelets was copied from the `kymatio` package.)
 
 ## Example 1
@@ -50,13 +50,13 @@ M = 512
 N = 512
 
 save_dir = '#####'
-filter_set = ST.FiltersSet(M, N, J, L).filter_set.generate_morlet(
+filter_set = ST.FiltersSet(M, N, J, L).generate_morlet(
     if_save=True, save_dir=save_dir, precision='single'
 )
 ```
 You may choose to save these wavelets and load them later:
 ```python
-filters_set = np.load(
+filter_set = np.load(
     save_dir + 'filters_set_M' + str(M) + 'N' + str(N) + 
     'J' + str(J) + 'L' + str(L) + '_single.npy',
     allow_pickle=True
@@ -64,11 +64,11 @@ filters_set = np.load(
 ```
 Then, define a ST calculator and feed it with images:
 ```python
-ST_calculator = ST.ST_2D(filters_set, J, L, device='gpu', weight=None)
+ST_calculator = ST.ST_2D(filter_set, J, L, device='gpu', weight=None)
 
-input_image = np.empty((30, M, N), dtype=np.float32)
+input_images = np.empty((30, M, N), dtype=np.float32)
 
-S, S_0, S_1, S_2 = ST_calculator.forward(
+S, S_0, S_1, S_2, E, E_residual = ST_calculator.forward(
     input_images, J, L, algorithm='fast'
 )
 ```
