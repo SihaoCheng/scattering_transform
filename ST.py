@@ -12,7 +12,9 @@
 #
 #
 # Aug 27, 2021: 
-# adding 1D scattering transform
+# 1. Added 1D scattering transform.
+# 2. Important! The "fast algorithm" can receive images with arbitrary
+#    size now!
 #
 #
 # May 3, 2021: 
