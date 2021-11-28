@@ -777,7 +777,7 @@ class ST_1D(object):
         return dx
 
 
-    def forward(self, data, J, algorithm='classic',
+    def forward(self, data, J, algorithm='fast',
                 j1j2_criteria='j2>j1', pseudo_coef=1,
                 ):
         '''
@@ -849,38 +849,6 @@ class ST_1D(object):
         # 1st and 2nd order
         data_f = torch.fft.fftn(data, dim=-1)
         
-        if algorithm == 'classic':
-            # calculating scattering coefficients, with two Fourier transforms
-            if weight is None:
-                weight_temp = 1
-            else:
-                weight_temp = weight[None,None,:]
-            # 1st-order scattering field
-            I1 = torch.fft.ifftn(
-                data_f[:,None,:] * filters_set[None,:J,:],
-                dim=-1,
-            ).abs()**pseudo_coef
-            # coefficients
-            S1 = (I1 * weight_temp).mean(-1)
-            E = (I1**2 * weight_temp).mean(-1)
-
-            # 2nd order
-            I1_f = torch.fft.fftn(I1, dim=-1)
-            for j1 in np.arange(J):
-                for j2 in np.arange(J):
-                    if eval(j1j2_criteria):
-                        # scattering field
-                        I2_temp = torch.fft.ifftn(
-                            I1_f[:,j1,:] * filters_set[None,j2,:], 
-                            dim=-1,
-                        ).abs()**pseudo_coef
-                        # coefficients
-                        S2[:,j1,j2] = (I2_temp * weight_temp).mean(-1)
-                        E_residual[:,j1,j2] = (
-                            (I2_temp - I2_temp.mean(-1)[:,None])**2 * 
-                            weight_temp
-                        ).mean(-1)
-
         if algorithm == 'fast':
             # only use the low-k Fourier coefs when calculating large-j scattering coefs.
             for j1 in np.arange(J):
@@ -926,10 +894,40 @@ class ST_1D(object):
                             (I2_temp - I2_temp.mean(-1)[:,:,None,])**2 *
                             weight_temp
                         ).mean(-1) * (M2/M)**2
+        
+        if algorithm == 'classic':
+            # calculating scattering coefficients, with two Fourier transforms
+            if weight is None:
+                weight_temp = 1
+            else:
+                weight_temp = weight[None,None,:]
+            # 1st-order scattering field
+            I1 = torch.fft.ifftn(
+                data_f[:,None,:] * filters_set[None,:J,:],
+                dim=-1,
+            ).abs()**pseudo_coef
+            # coefficients
+            S1 = (I1 * weight_temp).mean(-1)
+            E = (I1**2 * weight_temp).mean(-1)
+
+            # 2nd order
+            I1_f = torch.fft.fftn(I1, dim=-1)
+            for j1 in np.arange(J):
+                for j2 in np.arange(J):
+                    if eval(j1j2_criteria):
+                        # scattering field
+                        I2_temp = torch.fft.ifftn(
+                            I1_f[:,j1,:] * filters_set[None,j2,:], 
+                            dim=-1,
+                        ).abs()**pseudo_coef
+                        # coefficients
+                        S2[:,j1,j2] = (I2_temp * weight_temp).mean(-1)
+                        E_residual[:,j1,j2] = (
+                            (I2_temp - I2_temp.mean(-1)[:,None])**2 * 
+                            weight_temp
+                        ).mean(-1)
 
         S = torch.cat(( S0, S1, S2.reshape((N_image,-1))  ), 1)
-        # return S.cpu().numpy(), S0.cpu().numpy(), S1.cpu().numpy(), S2.cpu().numpy(),\
-        #        E.cpu().numpy(), E_residual.cpu().numpy()
         return S, S0, S1, S2, E, E_residual
 
 
