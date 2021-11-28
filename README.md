@@ -1,6 +1,6 @@
 # scattering transform (ST)
 
-The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information, particularly about non-Gaussian textures which are ubiquitous in astronomical/physical data.
+The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information about complex non-Gaussian structures which are ubiquitous in astronomical/physical data.
 
 Here I provide a python3 module to calculate the scattering coefficients of 1D signals or 2D fields (images). It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7+`. 
 
@@ -29,7 +29,7 @@ There is another python package called `kymatio` also dedicated to the scatterin
 2. switching between CPU/GPU calculation.
 
 However, there are several practical differences. The advantages of my `ST.py` module are:
-1. I provide an option of using a fast algorithm, which can speed up about 5 times (depending on the size of image);
+1. It has a fast algorithm for the global scattering coefficients, which can speed up about 5 times depending on the image and batch sizes. For example, for a large batch of 256x256 images, J=7 and L=4, the speed is around 1000 images per second (using a Tesla P100 GPU with google colab) and 30 images per second (using one CPU). For comparison, kymatio has a speed of 250 and 3 images per second for the same settings.
 2. It is compact and easy-to-modify.
 3. It allows for customized wavelet set.
 4. It uses pytorch >= 1.7, which is better optimized for FFT. 
