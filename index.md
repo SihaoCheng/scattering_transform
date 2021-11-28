@@ -23,9 +23,9 @@ The scattering transform has very interesting visual interpretation. The first-o
 
 The second-order scattering coefficients are more interesting, as they contain substantial non-Gaussian information and can also be interpreted. After a further reduction, these coefficients can represent the sparsity and shape of features in the field:
 <br>
-<img src="https://github.com/SihaoCheng/scattering_transform/blob/master/figures/fig7.png?raw=true" width="600" />
+<img src="https://github.com/SihaoCheng/scattering_transform/blob/master/figures/fig7.png?raw=true" width="400" />
 <br>
-<img src="https://github.com/SihaoCheng/scattering_transform/blob/master/figures/fig8.png?raw=true" width="600" />
+<img src="https://github.com/SihaoCheng/scattering_transform/blob/master/figures/fig8.png?raw=true" width="300" />
 
 
 <h1 id="Contacts">Contacts</h1>
