@@ -348,6 +348,126 @@ class ST_2D(object):
             C11_reduced.reshape((N_image,-1))
         ), 1)
         return S, S0, S1, S2, C00, E_residual, L2, C01_reduced.reshape((N_image,-1))
+    
+    
+    def phase_harmonics(self, data, J, L):
+        '''
+        Calculates the phase harmonic correlations for a batch of images, including:
+        orig. x orig.:     C00 = <(I * psi)(I * psi)>
+        orig. x modulus:   C01 = <(I * psi2)(|I * psi1| * psi2)> / sqrt(||I * psi2|| x || |I * psi1| * psi2 ||)
+        modulus x modulus: C11 = <(|I * psi1| * psi3)(|I * psi2| * psi3)>
+            Parameters
+            ----------
+            data : numpy array or torch tensor
+                image set, with size [N_image, x-sidelength, y-sidelength]
+            J, L : int
+                the number of scales and angles for calculation.
+            Returns
+            -------
+            PH : dict{'C00', 'S1', 'C01_r', 'C11diag_r', 'C11diag', 'C11'}
+                a dictionary containing different sets of phase harmonic correlations
+                'C00': torch tensor with size [N_image, J, L]
+                    the power in each wavelet bands
+                'S1' : torch tensor with size [N_image, J, L]
+                    the 1st-order scattering coefficients, i.e., the mean of wavelet 
+                    modulus fields
+                'C01_r' : torch tensor with size [N_image, J*J*L]
+                    the orig. x modulus terms averaged over l1. It is flattened from
+                    a tensor of size [N_image, J, J, L], where the elements not following
+                    j1 < j2 are all set to zeros.
+                'C11diag_r' : torch tensor with size [N_image, J, J, L]
+                    the modulus x modulus terms with j1=j2 and l1=l2, averaged over l1.
+                    Elements not following j1 < j3 are all set to np.nan.
+                'C11diag' : torch tensor with size [N_image, J, L, J, L]
+                    the modulus x modulus terms with j1=j2 and l1=l2. Elements not following
+                    j1 < j3 are all set to np.nan.
+                'C11' : torch tensor with size [N_image, J, L, J, L, J, L]
+                    the modulus x modulus terms in general. Elements not following
+                    j1 <= j2 < j3 are all set to np.nan.
+        '''
+        M, N = self.M, self.N
+        N_image = data.shape[0]
+        filters_set = self.filters_set
+        weight = self.weight
+
+        # convert numpy array input into torch tensors
+        if type(data) == np.ndarray:
+            data = torch.from_numpy(data)
+            
+        if self.device=='gpu':
+            data = data.cuda()
+        data_f = torch.fft.fftn(data, dim=(-2,-1))
+        
+        # initialize tensors for scattering coefficients
+        C00= torch.zeros((N_image,J,L), dtype=data.dtype)
+        S1 = torch.zeros((N_image,J,L), dtype=data.dtype)
+        C01= torch.zeros((N_image,J,L,J,L), dtype=data_f.dtype)
+        C11diag= torch.zeros((N_image,J,L,J,L), dtype=data.dtype) + np.nan
+        C11= torch.zeros((N_image,J,L,J,L,J,L), dtype=data_f.dtype) + np.nan
+        C01_reduced= torch.zeros((N_image,J,J,L), dtype=data_f.dtype)
+        C11diag_reduced= torch.zeros((N_image,J,J,L), dtype=data.dtype)
+        C11_reduced= torch.zeros((N_image,J,J,L,J,L), dtype=data_f.dtype)
+        
+        # move torch tensors to gpu device, if required
+        if self.device=='gpu':
+            C00=C00.cuda()
+            S1 = S1.cuda()
+            C01=C01.cuda()
+            C11diag=C11diag.cuda()
+            C11=C11.cuda()
+            C01_reduced=C01_reduced.cuda()
+            C11diag_reduced=C11diag_reduced.cuda()
+            C11_reduced=C11_reduced.cuda()
+        
+        # S0[:,0] = data.mean((-2,-1))
+        
+        I1 = torch.fft.ifftn(data_f[:,None,None,:,:] * filters_set[None,:J,:,:,:], dim=(-2,-1)).abs()
+        I1_f = torch.fft.fftn(I1, dim=(-2,-1))
+        C00 = (I1**2).mean((-2,-1))
+        S1  = I1.mean((-2,-1))
+        # only use the low-k Fourier coefs when calculating large-j scattering coefs.
+        for j3 in range(1,J):
+            dx3, dy3 = self.get_dxdy(j3)
+            I1_f_small = self.cut_high_k_off(I1_f, dx3, dy3)
+            data_f_small = self.cut_high_k_off(data_f, dx3, dy3)
+            wavelet_f3 = self.cut_high_k_off(filters_set[j3], dx3, dy3)
+            _, M3, N3 = wavelet_f3.shape
+            for j2 in range(0,j3):
+                # [N_image,l2,l3,x,y]
+                C11_temp = (
+                    I1_f_small[:,j2,:,None,:,:].abs()**2 * wavelet_f3[None,None,:,:,:]**2
+                ).mean((-2,-1)) /(M3*N3) * (M3*N3/M/N)**2
+                
+                C01[:,j2,:,j3,:] = (
+                    (
+                        data_f_small[:,None,None,:,:] * torch.conj(I1_f_small[:,j2,:,None,:,:])
+                    ) * wavelet_f3[None,None,:,:,:]**2
+                ).mean((-2,-1)) /(M3*N3) * (M3*N3/M/N)**2 / (C00[:,None,j3,:] * C11_temp)**0.5
+                for j1 in range(0, j2+1):
+                    # calculate in Fourier space
+                    # [N_image,l1,l2,l3,x,y]
+                    C11[:,j1,:,j2,:,j3,:] = (
+                        (
+                            I1_f_small[:,j1,:,None,None,:,:] * torch.conj(I1_f_small[:,None,j2,:,None,:,:])
+                        ) * wavelet_f3[None,None,None,:,:,:]**2
+                    ).mean((-2,-1)) /(M3*N3) * (M3*N3/M/N)**2
+        for j1 in range(J):
+            for l1 in range(L):
+                for j3 in range(j1+1, J):
+                    C11diag[:,j1,l1,j3,:] = C11[:,j1,l1,j1,l1,j3,:].real
+        # C11 = C11temp / (C11diag[:,:,:,None,None,:,:] * C11diag[:,None,None,:,:,:,:])**0.5
+        # Now the normalization of C11 is conducted in the gradiant descent part of the code.
+        # average over l1
+        for l1 in range(L):
+            for l2 in range(L):
+                C11diag_reduced [:,:,:,(l2-l1)%L] += C11diag[:,:,l1,:,l2]
+                C01_reduced[:,:,:,(l2-l1)%L]+=C01[:,:,l1,:,l2]
+                # for l3 in range(L):
+                #     C11_reduced[:,:,:,(l2-l1)%L,:,(l3-l1)%L] += C11[:,:,l1,:,l2,:,l3]
+        C11diag_reduced /= L
+        C01_reduced /= L
+
+        return {'C00':C00, 'S1':S1, 'C01_r':C01_reduced.reshape((N_image,-1)), 'C11diag_r':C11diag_reduced, 'C11diag':C11diag, 'C11':C11}
 
 
     def get_I1(self, data, J, L):
@@ -536,6 +656,155 @@ class FiltersSet(object):
         if fft_shift:
             gab = np.fft.fftshift(gab, axes=(0, 1))
         return gab
+    
+    
+    # Bump Steerable Wavelet
+    def generate_bump_steerable(self, if_save=False, save_dir=None, precision='double'):
+        if precision=='double':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
+        if precision=='single':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float32)
+        for j in range(self.J):
+            for l in range(self.L):
+                wavelet_Fourier = self.bump_steerable_2d(
+                    M=self.M,
+                    N=self.N, 
+                    k0= 0.375 * 2 * np.pi / 2**j,
+                    theta0=(int(self.L-self.L/2-1)-l) * np.pi / self.L, 
+                    L=self.L
+                )
+                wavelet_Fourier[0,0] = 0
+                if precision=='double':
+                    psi[j, l] = torch.from_numpy(wavelet_Fourier)
+                if precision=='single':
+                    psi[j, l] = torch.from_numpy(wavelet_Fourier.astype(np.float32))
+        if precision=='double':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real
+            )
+        if precision=='single':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real.astype(np.float32)
+            )
+        
+        filters_set = {'psi':psi, 'phi':phi}
+        if if_save:
+            np.save(
+                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
+                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
+                np.array([{'filters_set': filters_set}])
+            )
+        return filters_set
+
+    def bump_steerable_2d(self, M, N, k0, theta0, L):
+        """
+            (from kymatio package) 
+            Computes a 2D bump steerable filter.
+            A bump steerable filter is a filter defined with
+            compact support in Fourier space in the range
+            k in [0, 2*k0]. It is a steerable filter, meaning
+            that its profile in Fourier space can be expressed
+            as a radial part multiplied by an angular part:
+            psi_fft(k_vec) = c * radial_part(k) * angular_part(theta),
+            where c is a normalization constant: c = 1/1.29 * 2^(L/2-1) * (L/2-1)! / sqrt((L/2)(L-2)!),
+            the radial profile is:  exp[ (-(k - k0)^2) / (k0^2 - (k - k0)^2) ], for k within [0, 2*k0]
+            the angular profile is: (cos(theta - theta0)) ^ (L/2 - 1), for theta within [theta0-pi/2, theta0+pi/2].
+            Parameters
+            ----------
+            M, N : int
+                spatial sizes
+            k0 : float
+                central frequency (in [0, 1])
+            theta0 : float
+                angle in [0, pi]
+            Returns
+            -------
+            bump_steerable_fft : ndarray
+                numpy array of size (M, N)
+        """
+        xx = np.empty((2,2, M, N))
+        yy = np.empty((2,2, M, N))
+
+        for ii, ex in enumerate([-1, 0]):
+            for jj, ey in enumerate([-1, 0]):
+                xx[ii,jj], yy[ii,jj] = np.mgrid[
+                    ex * M : M + ex * M, 
+                    ey * N : N + ey * N
+                ]
+        k = ((xx/M)**2 + (yy/N)**2)**0.5 * 2 * np.pi
+        theta = np.arctan2(yy, xx)
+        
+        radial = np.exp(-(k - k0)**2 / (2*k*k0 - k**2)) #(k0**2 - (k-k0)**2)) #
+        radial[k==0] = 0
+        radial[k>= 2 * k0] = 0
+        angular = np.cos(theta - theta0)**(L/2-1+2)
+        angular[np.cos(theta - theta0)<0] = 0
+        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(L/2-1) / np.sqrt((L/2)* np.math.factorial(L-2)),
+        bump_steerable_fft = c * (radial * angular).sum((0,1))
+        return bump_steerable_fft
+
+
+    # Gaussian Steerable Wavelet
+    def generate_gau_steerable(self, if_save=False, save_dir=None, precision='double'):
+        if precision=='double':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
+        if precision=='single':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float32)
+        for j in range(self.J):
+            for l in range(self.L):
+                wavelet_Fourier = self.gau_steerable_2d(
+                    M=self.M,
+                    N=self.N, 
+                    k0= 0.375 * 2 * np.pi / 2**j,
+                    theta0=(int(self.L-self.L/2-1)-l) * np.pi / self.L, 
+                    L=self.L
+                )
+                wavelet_Fourier[0,0] = 0
+                if precision=='double':
+                    psi[j, l] = torch.from_numpy(wavelet_Fourier)
+                if precision=='single':
+                    psi[j, l] = torch.from_numpy(wavelet_Fourier.astype(np.float32))
+        if precision=='double':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real
+            )
+        if precision=='single':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real.astype(np.float32)
+            )
+        
+        filters_set = {'psi':psi, 'phi':phi}
+        if if_save:
+            np.save(
+                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
+                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
+                np.array([{'filters_set': filters_set}])
+            )
+        return filters_set
+
+    def gau_steerable_2d(self, M, N, k0, theta0, L):
+        xx = np.empty((2,2, M, N))
+        yy = np.empty((2,2, M, N))
+
+        for ii, ex in enumerate([-1, 0]):
+            for jj, ey in enumerate([-1, 0]):
+                xx[ii,jj], yy[ii,jj] = np.mgrid[
+                    ex * M : M + ex * M, 
+                    ey * N : N + ey * N
+                ]
+        k = ((xx/M)**2 + (yy/N)**2)**0.5 * 2 * np.pi
+        theta = np.arctan2(yy, xx)
+        
+        # radial = np.exp(-(k - k0)**2 / (2*k*k0 - k**2)) #(k0**2 - (k-k0)**2)) #
+        radial = (2*k/k0)**2 * np.exp(-k**2/(2 * (k0/1.4)**2))
+        radial[k==0] = 0
+        # radial2 = np.exp(-(k - k0)**2 / (2 * (k0/2)**2))
+        # radial[k>= k0] = radial2[k>= k0]
+        angular = np.cos(theta - theta0)**(L/2-1+2)
+        angular[np.cos(theta - theta0)<0] = 0
+        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(L/2-1) / np.sqrt((L/2)* np.math.factorial(L-2)),
+        gau_steerable_fft = c * (radial * angular).sum((0,1))
+        return gau_steerable_fft
         
 
 def remove_slope(images):
