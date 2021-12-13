@@ -110,7 +110,7 @@ It returns a dictionary with different sets of coefficients including:
 | type    | definition |
 | ------ | ----------- |
 |orig. x orig.   |   C00 = <(I * psi)(I * psi)>  |
-|orig. x modulus |   C01 = <(I * psi2)(|I * psi1| * psi2)> / sqrt(||I * psi2|| x || |I * psi1| * psi2 ||)  |
+|orig. x modulus |   C01 = <(I * psi2)(\|I * psi1\| * psi2)> / sqrt(\|\|I * psi2\|\| x \|\| \|I * psi1\| * psi2 \|\|)  |
 |modulus x modulus|  C11 = <(|I * psi1| * psi3)(|I * psi2| * psi3)>   |
 
 
