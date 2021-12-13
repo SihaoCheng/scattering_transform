@@ -105,12 +105,11 @@ PH = ST_calculator.phase_harmonics(
 )
 ```
 
-It returns a dictionary with different sets of coefficients including:
-
+It returns a dictionary with different sets of coefficients including three types of phase harmonic correlations. (Note that the notation here is slightly different from the original paper. Here we use the number to represent the order of non-linearity. So C00 are the linear correlations, C01 are the correlation between the original field and modulus field (0th- and 1st-order non-linear fields), etc.)
 | type    | definition |
-| ------ | ----------- |
-|orig. x orig.   |   C00 = <(I * psi)(I * psi)>  |
-|orig. x modulus |   C01 = <(I * psi2)(\|I * psi1\| * psi2)> / sqrt(\|\|I * psi2\|\| x \|\| \|I * psi1\| * psi2 \|\|)  |
+| ------  | ----------- |
+|orig. x orig.    |   C00 = <(I * psi)(I * psi)>  |
+|orig. x modulus  |   C01 = <(I * psi2)(\|I * psi1\| * psi2)> / sqrt(\|\|I * psi2\|\| x \|\| \|I * psi1\| * psi2 \|\|)  |
 |modulus x modulus|  C11 = <(|I * psi1| * psi3)(|I * psi2| * psi3)>   |
 
 
