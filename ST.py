@@ -535,7 +535,7 @@ class FiltersSet(object):
         self.J = J
         self.L = L
 
-    def generate_morlet(self, if_save=False, save_dir=None, precision='double'):
+    def generate_morlet(self, if_save=False, save_dir=None, precision='single'):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
         if precision=='single':
@@ -559,11 +559,11 @@ class FiltersSet(object):
         if precision=='double':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 0.8 * 2**(self.J-1), 0, 0).real
-            )
+            ) * (self.M * self.N)**0.5
         if precision=='single':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 0.8 * 2**(self.J-1), 0, 0).real.astype(np.float32)
-            )
+            ) * (self.M * self.N)**0.5
         
         filters_set = {'psi':psi, 'phi':phi}
         if if_save:
@@ -669,7 +669,7 @@ class FiltersSet(object):
     
     
     # Bump Steerable Wavelet
-    def generate_bump_steerable(self, if_save=False, save_dir=None, precision='double'):
+    def generate_bump_steerable(self, if_save=False, save_dir=None, precision='single'):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
         if precision=='single':
@@ -691,11 +691,11 @@ class FiltersSet(object):
         if precision=='double':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real
-            )
+            ) * (self.M * self.N)**0.5
         if precision=='single':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real.astype(np.float32)
-            )
+            ) * (self.M * self.N)**0.5
         
         filters_set = {'psi':psi, 'phi':phi}
         if if_save:
@@ -755,7 +755,7 @@ class FiltersSet(object):
 
 
     # Gaussian Steerable Wavelet
-    def generate_gau_steerable(self, if_save=False, save_dir=None, precision='double'):
+    def generate_gau_steerable(self, if_save=False, save_dir=None, precision='single'):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
         if precision=='single':
@@ -777,11 +777,11 @@ class FiltersSet(object):
         if precision=='double':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real
-            )
+            ) * (self.M * self.N)**0.5
         if precision=='single':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real.astype(np.float32)
-            )
+            ) * (self.M * self.N)**0.5
         
         filters_set = {'psi':psi, 'phi':phi}
         if if_save:
