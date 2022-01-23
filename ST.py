@@ -1,5 +1,9 @@
 # Updates:
 #
+# Jan 22, 2021:
+#
+# 1. Fixed a bug in the normalization of low-pass filter in the class "FiltersSet".
+#
 # Dec 10, 2021:
 # 1. A method to calculate the phase harmonic correlations is added to the
 #    ST_2D class: ST_2D.phase_harmonics(data, J, L). Its usage is very similar
