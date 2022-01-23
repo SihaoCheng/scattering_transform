@@ -539,6 +539,7 @@ class FiltersSet(object):
         self.J = J
         self.L = L
 
+    # Morlet Wavelets
     def generate_morlet(self, if_save=False, save_dir=None, precision='single'):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
