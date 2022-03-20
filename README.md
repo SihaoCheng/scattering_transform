@@ -2,7 +2,7 @@
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information about complex non-Gaussian structures which are ubiquitous in astronomical/physical data.
 
-In this python3 package called "scattering", we provide a set of functions to calculate the scattering coefficients, scattering covariance, alpha covariance, and binned bispectrum, with similar format. This package allows one to perform both analysis and synthesis within the same framework. The input images can be a numpy array or torch tensor with size `[N_image, N_x_pixels, N_y_pixels]`.
+In this python3 package called "scattering", we provide a set of functions to calculate the scattering coefficients, scattering covariance, alpha covariance, and binned bispectrum, with similar format. This package allows one to perform both analysis and synthesis within the same framework. The input images can be a numpy array or torch tensor with size `[N_image, N_x_pixels, N_y_pixels]`. Below we show example usage, which can also be found in the demo jupyter notebook `scattering.ipynb` in this repository.
 
 ## Install
 Please download (only) the folder `scattering` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
