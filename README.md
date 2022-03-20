@@ -1,10 +1,118 @@
-# scattering transform (ST)
+# The `scattering` package
 
 The scattering transform provides a powerful statistical vocabulary to quantify textures in a signal / field. It is similar to the power spectrum, but it captures a lot more information about complex non-Gaussian structures which are ubiquitous in astronomical/physical data.
 
-Here I provide a python3 module to calculate the scattering coefficients of 1D signals or 2D fields (images). It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7+`. 
+In this python3 package called "scattering", we provide a set of functions to calculate the scattering coefficients, scattering covariance, alpha covariance, and binned bispectrum, with similar format. This package allows one to perform both analysis and synthesis within the same framework. The input images can be a numpy array or torch tensor with size `[N_image, N_x_pixels, N_y_pixels]`.
 
-This `ST` module can do the following:
+## Install
+Please download (only) the folder `scattering` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
+```python
+import sys
+sys.path.append('~/where/you/download/the/script/')
+``` 
+Then, simply import it:
+```python
+import scattering
+```
+
+## Analysis
+
+### modulus scattering
+1. define calculator
+```python
+st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4)
+```
+2. calculate the scattering coefficients (scattering mean) and scattering correlations:
+```python
+s_mean = st_calc.scattering_coef(image_input)
+s_cov  = st_calc.scattering_cov (image_input)
+
+print(s_mean['S2'])
+print(s_cov['Corr11_iso'])
+```
+
+### alpha scattering
+
+1. define calculator:
+```python
+aw_calc = scattering.PhaseHarmonics2d(M=256, N=256, J=5, L=4)
+```
+
+2. calculate the alpha correlations:
+```python
+alpha_cov = aw_calc.forward(image_input)
+print(alpha_cov)
+```
+
+### bispectrum
+
+1. define calculator:
+```python
+k_bins = 5
+M = N = 256
+k_range = np.logspace(0,np.log10(M/2*1.4), k_bins)
+bi_calc = scattering.Bispectrum_Calculator(k_range, M=M, N=N)
+```
+
+2. calculate binned bispectrum
+```python
+bi = bi_calc.forward(image_input)
+```
+
+### using gpu
+
+when defining the calculator, set parameter `device='gpu'`. for example:
+```python
+st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4, device='gpu')
+```
+
+
+## Synthesis example
+
+We provide a simple function to perform image synthesis based on the aforementioned coefficients. The default device is 'gpu'. If you do not have access to a gpu, please set `device='cpu'`.
+
+### generating new images with similar textures an/some target image(s)
+```python
+image_syn = scattering.synthesis(
+    estimator_name='s_cov_iso', 
+    target=image_input, 
+    mode='image',
+    steps=400, learning_rate=0.5
+)
+```
+
+This is an example synthesis result based on the scattering correlations. The left panel is the target image and the right is the synthesised one.
+![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_image.png?raw=true)
+
+
+### generating new images with target values for particular coefficients
+
+```python
+image_syn = scattering.synthesis(
+    estimator_name='s_cov_iso', 
+    target=coef_target,
+    mode='estimator', 
+    M=256, N=256, J=5, L=4,
+    steps=400, learning_rate=0.5
+)
+```
+
+This is an example of interpolating the scattering correlation values from two fields. The leftmost and rightmost ones are two input images.
+![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_coef.png?raw=true)
+
+
+
+
+
+
+
+
+
+# More details about the `ST.py` module
+
+Inside the package of `scattering` there is a module called `ST.py`, which is a python3 module to calculate the scattering mean and covariance coefficients of 1D signals or 2D fields (images), and can be used independently from the scattering package. It has been optimized in speed, convenience, and flexibility. Everything you need is just one python script `ST.py`, which depends only on two packages: `numpy, torch = 1.7+`. 
+
+This `ST.py` module can do the following:
 1. Creating the 1D or 2D wavelets to be used in scattering transform;
 2. Calculating the scattering coefficients of 1D signals or 2D fields (images).
 3. Calculating the phase harmonic correlations, a statistic similar to the scattering transform but enabling non-linear cross-correlation between two signal / fields.
