@@ -82,6 +82,7 @@ image_syn = scattering.synthesis(
 ```
 
 This is an example synthesis result based on the scattering correlations. The left panel is the target image and the right is the synthesised one.
+
 ![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_image.png?raw=true)
 
 
@@ -98,6 +99,7 @@ image_syn = scattering.synthesis(
 ```
 
 This is an example of interpolating the scattering correlation values from two fields. The leftmost and rightmost ones are two input images.
+
 ![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_coef.png?raw=true)
 
 
