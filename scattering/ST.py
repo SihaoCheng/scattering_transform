@@ -346,10 +346,11 @@ class FiltersSet(object):
 
 class Scattering2d(object):
     def __init__(
-        self, M, N, J, L, device='cpu', 
+        self, M, N, J, L, device='gpu', 
         wavelets='morlet', filters_set=None, weight=None, 
         precision='single', ref=None, ref_a=None, ref_b=None,
     ):
+        if not torch.cuda.is_available(): device='cpu'
         if filters_set is None:
             if wavelets=='morlet':
                 filters_set = FiltersSet(
@@ -628,8 +629,7 @@ class Scattering2d(object):
                 }
     
     def scattering_coef(
-        self, data, if_large_batch=False, flatten=False,
-        algorithm='fast', j1j2_criteria='j2>=j1', pseudo_coef=1
+        self, data, if_large_batch=False, j1j2_criteria='j2>=j1', algorithm='fast', pseudo_coef=1
     ):
         M, N, J, L = self.M, self.N, self.J, self.L
         N_image = data.shape[0]
@@ -644,11 +644,11 @@ class Scattering2d(object):
         S0 = torch.zeros((N_image,1), dtype=data.dtype)
         P00= torch.zeros((N_image,J,L), dtype=data.dtype)
         S1 = torch.zeros((N_image,J,L), dtype=data.dtype)
-        S2 = torch.zeros((N_image,J,L,J,L), dtype=data.dtype) + np.nan
-        P11= torch.zeros((N_image,J,L,J,L), dtype=data.dtype) + np.nan
+        S2 = torch.zeros((N_image,J,J,L,L), dtype=data.dtype) + np.nan
+        P11= torch.zeros((N_image,J,J,L,L), dtype=data.dtype) + np.nan
         S2_iso = torch.zeros((N_image,J,J,L), dtype=data.dtype)
         P11_iso= torch.zeros((N_image,J,J,L), dtype=data.dtype)
-        E_residual = torch.zeros((N_image,J,L,J,L), dtype=data.dtype)
+        E_residual = torch.zeros((N_image,J,J,L,L), dtype=data.dtype)
         
         # move torch tensors to gpu device, if required
         if self.device=='gpu':
@@ -711,13 +711,13 @@ class Scattering2d(object):
                             else:
                                 weight_temp = self.weight_downsample_list[j2][None,None,None,:,:]
                             # S2 = I2 averaged over (x,y)
-                            S2[:,j1,:,j2,:] = (
+                            S2[:,j1,j2,:,:] = (
                                 I2**pseudo_coef * weight_temp
                             ).mean((-2,-1)) * M2*N2/M/N
-                            P11[:,j1,:,j2,:] = (
+                            P11[:,j1,j2,:,:] = (
                                 I2**2 * weight_temp
                             ).mean((-2,-1)) * (M2*N2/M/N)**2
-                            E_residual[:,j1,:,j2,:] = (
+                            E_residual[:,j1,j2,:,:] = (
                                 (I2 - I2.mean((-2,-1))[:,:,:,None,None])**2 * weight_temp
                             ).mean((-2,-1)) * (M2*N2/M/N)**2
             elif if_large_batch:
@@ -753,21 +753,18 @@ class Scattering2d(object):
                                 wavelet_f2 = self.cut_high_k_off(filters_set[j2], dx2, dy2)
                                 _, M2, N2 = wavelet_f2.shape
                                 for l2 in range(L):
-                                    I2 = torch.fft.ifftn(
-                                        I1_f_small * wavelet_f2[None,l2],
-                                        dim=(-2,-1)
-                                    ).abs()
+                                    I2 = torch.fft.ifftn(I1_f_small * wavelet_f2[None,l2], dim=(-2,-1)).abs()
                                     if weight is None:
                                         weight_temp = 1
                                     else:
                                         weight_temp = self.weight_downsample_list[j2][None,:,:]
-                                    S2[:,j1,l1,j2,l2] = (
+                                    S2[:,j1,j2,l1,l2] = (
                                         I2**pseudo_coef * weight_temp
                                     ).mean((-2,-1)) * M2*N2/M/N
-                                    P11[:,j1,l1,j2,l2] = (
+                                    P11[:,j1,j2,l1,l2] = (
                                         I2**2 * weight_temp
                                     ).mean((-2,-1)) * (M2*N2/M/N)**2
-                                    E_residual[:,j1,l1,j2,l2] = (
+                                    E_residual[:,j1,j2,l1,l2] = (
                                         (I2 - I2.mean((-2,-1))[:,None,None])**2 * weight_temp
                                     ).mean((-2,-1)) * (M2*N2/M/N)**2
         elif algorithm == 'classic':
@@ -797,9 +794,9 @@ class Scattering2d(object):
                             dim=(-2,-1),
                         ).abs()
                         # coefficients
-                        S2 [:,j1,:,j2,:] = (I2**pseudo_coef * weight_temp).mean((-2,-1))
-                        P11[:,j1,:,j2,:] = (I2**2 * weight_temp).mean((-2,-1))
-                        E_residual[:,j1,:,j2,:] = (
+                        S2 [:,j1,j2,:,:] = (I2**pseudo_coef * weight_temp).mean((-2,-1))
+                        P11[:,j1,j2,:,:] = (I2**2 * weight_temp).mean((-2,-1))
+                        E_residual[:,j1,j2,:,:] = (
                             (I2 - I2.mean((-2,-1))[:,:,:,None,None])**2
                             * weight_temp
                         ).mean((-2,-1))
@@ -809,36 +806,28 @@ class Scattering2d(object):
         P00_iso= P00.mean(-1)
         for l1 in range(L):
             for l2 in range(L):
-                S2_iso [:,:,:,(l2-l1)%L] += S2 [:,:,l1,:,l2]
-                P11_iso[:,:,:,(l2-l1)%L] += P11[:,:,l1,:,l2]
+                S2_iso [:,:,:,(l2-l1)%L] += S2 [:,:,:,l1,l2]
+                P11_iso[:,:,:,(l2-l1)%L] += P11[:,:,:,l1,l2]
         S2_iso  /= L
         P11_iso /= L
-
+        
+        # define two reduced s2 coefficients
         s21 = S2_iso.mean(-1) / S1_iso[:,:,None]
         s22 = S2_iso[:,:,:,0] / S2_iso[:,:,:,L//2]
         
-        for_synthesis = for_synthesis_iso = None
-        if flatten:
-            S1 = S1.reshape((N_image, -1))
-            S2 = S2.reshape((N_image, -1))
-            S2 = S2[:, S2[0].abs()>-99]
-            S2_iso = S2_iso.reshape((N_image, -1))
-            S2_iso = S2_iso[:, S2_iso[0].abs()>-99]
-            s21 = s21.reshape((N_image, -1))
-            s21 = s21[:, s21[0].abs()>-99]
-            s22 = s22.reshape((N_image, -1))
-            s22 = s22[:, s22[0].abs()>-99]
-            P00 = P00.reshape((N_image, -1))
-            P11 = P11.reshape((N_image, -1))
-            P11 = P11[:, P11[0]>-99]
-            P11_iso = P11_iso.reshape((N_image, -1))
-            P11_iso = P11_iso[:, P11_iso[0]>-99]
-            
-            for_synthesis = torch.cat((S1.log(), S2.log()), dim=-1)
-            for_synthesis_iso = torch.cat((S1_iso.log(), S2_iso.log()), dim=-1)
+        # get a flatten vector with size [N_image, -1] for synthesis
+        for_synthesis = torch.cat((
+            S1.reshape((N_image, -1)).log(), 
+            S2[:,S2[0].abs()>-99].log()
+        ), dim=-1)
+        for_synthesis_iso = torch.cat((
+            S1_iso.reshape((N_image, -1)).log(), 
+            S2_iso[:,S2_iso[0].abs()>-99].log()
+        ), dim=-1)
+        
         return {'var': data.var((-2,-1))[:,None], 'mean': data.mean((-2,-1))[:,None],
-                'S0':S0, 
-                'S1':S1,  'S1_iso':  S1_iso,
+                'S0':S0,  
+                'S1':S1,  'S1_iso':  S1_iso, 
                 'S2':S2,  'S2_iso':  S2_iso, 's21':s21, 's22':s22,
                 'P00':P00,'P00_iso':P00_iso,
                 'P11':P11,'P11_iso':P11_iso,
@@ -848,8 +837,8 @@ class Scattering2d(object):
     # self.scattering_mean = self.scattering_coef
     
     def scattering_cov(
-        self, data, if_large_batch=False, flatten=False, C11_criteria=None,
-        use_ref=False, normalization='P00', if_synthesis=False
+        self, data, if_large_batch=False, C11_criteria=None,
+        use_ref=False, normalization='P00',
     ):
         '''
         Calculates the scattering correlations for a batch of images, including:
@@ -886,10 +875,6 @@ class Scattering2d(object):
                     the modulus x modulus terms in general. Elements not following
                     j1 <= j2 <= j3 are all set to np.nan.
         '''
-        if if_synthesis:
-            flatten=True
-            use_ref=True
-            # normalization='P11'
         if C11_criteria is None:
             C11_criteria = 'j2>=j1'
             
@@ -1019,39 +1004,35 @@ class Scattering2d(object):
                     Corr11_iso[...,(l2-l1)%L,(l3-l1)%L] += Corr11[...,l1,l2,l3]
         C01_iso /= L; P11_iso /= L; C11_iso /= L; Corr11_iso /= L
         
-        for_synthesis = for_synthesis_iso = index_for_synthesis = index_for_synthesis_iso = None
-        if flatten:
-            # select elements
-            select_and_index = self.get_index(J, L, normalization, C11_criteria)
-            index_for_synthesis     = select_and_index['index_for_synthesis']
-            index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
-            
-            # flatten coefficient tensors
-            P00 = P00.reshape((N_image, -1))
-            S1  =  S1.reshape((N_image, -1))
-            C01        =     C01[:,select_and_index['select_2']]
-            C01_iso    = C01_iso[:,select_and_index['select_2_iso']]
-            P11        =     P11[:,select_and_index['select_2']]
-            P11_iso    = P11_iso[:,select_and_index['select_2_iso']]
-            C11        =     C11[:,select_and_index['select_3']]
-            C11_iso    = C11_iso[:,select_and_index['select_3_iso']]
-            Corr11     =  Corr11[:,select_and_index['select_3']]
-            Corr11_iso =Corr11_iso[:,select_and_index['select_3_iso']]
-            
-            # get a single, flattened data vector for_synthesis
-            for_synthesis = torch.cat((
-                (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
-                P00.log(), S1.log(),
-                C01.real, C01.imag, Corr11.real, Corr11.imag
-            ), dim=-1)
-            for_synthesis_iso = torch.cat((
-                (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
-                P00_iso.log(), S1_iso.log(),
-                C01_iso.real, C01_iso.imag, Corr11_iso.real, Corr11_iso.imag
-            ), dim=-1)
-            if normalization=='P11':
-                for_synthesis     = torch.cat((for_synthesis,     P11.log()),     dim=-1)
-                for_synthesis_iso = torch.cat((for_synthesis_iso, P11_iso.log()), dim=-1)
+        
+        # get a single, flattened data vector for_synthesis
+        select_and_index = self.get_index(J, L, normalization, C11_criteria)
+        index_for_synthesis     = select_and_index['index_for_synthesis']
+        index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
+        
+        for_synthesis = torch.cat((
+            (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
+            P00.reshape((N_image, -1)).log(), 
+            S1.reshape((N_image, -1)).log(),
+            C01[:,select_and_index['select_2']].real, 
+            C01[:,select_and_index['select_2']].imag, 
+            Corr11[:,select_and_index['select_3']].real, 
+            Corr11[:,select_and_index['select_3']].imag
+        ), dim=-1)
+        for_synthesis_iso = torch.cat((
+            (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
+            P00_iso.log(), 
+            S1_iso.log(),
+            C01_iso[:,select_and_index['select_2_iso']].real, 
+            C01_iso[:,select_and_index['select_2_iso']].imag, 
+            Corr11_iso[:,select_and_index['select_3_iso']].real, 
+            Corr11_iso[:,select_and_index['select_3_iso']].imag
+        ), dim=-1)
+        if normalization=='P11':
+            for_synthesis     = torch.cat(
+                (for_synthesis,     P11[:,select_and_index['select_2']].log()),         dim=-1)
+            for_synthesis_iso = torch.cat(
+                (for_synthesis_iso, P11_iso[:,select_and_index['select_2_iso']].log()), dim=-1)
             
         return {'var': data.var((-2,-1)), 'mean': data.mean((-2,-1)),
                 'P00':P00, 'P00_iso':P00_iso,
@@ -1066,14 +1047,10 @@ class Scattering2d(object):
         }
     
     def scattering_cov_2fields(
-        self, data_a, data_b, if_large_batch=False, flatten=False, C11_criteria=None,
-        use_ref=False, normalization='P00', if_synthesis=False
+        self, data_a, data_b, if_large_batch=False, C11_criteria=None,
+        use_ref=False, normalization='P00',
     ):
-        if if_synthesis:
-            flatten=True
-            use_ref=True
-        if C11_criteria is None:
-            C11_criteria = 'j2>=j1'
+        if C11_criteria is None: C11_criteria = 'j2>=j1'
             
         M, N, J, L = self.M, self.N, self.J, self.L
         N_image = data_a.shape[0]
@@ -1307,41 +1284,35 @@ class Scattering2d(object):
                     Corr11_iso[...,(l2-l1)%L,(l3-l1)%L] += Corr11[...,l1,l2,l3]
         C01_iso /= L; P11_a_iso /= L; P11_b_iso /= L; C11_iso /= L; Corr11_iso /= L
         
-        for_synthesis = for_synthesis_iso = index_for_synthesis = index_for_synthesis_iso = None
-        if flatten:
-            # select elements
-            select_and_index = self.get_index(J, L, normalization, C11_criteria, 2)
-            index_for_synthesis     = select_and_index['index_for_synthesis']
-            index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
-            
-            # flatten coefficient tensors
-            P00_a = P00_a.reshape((N_image, -1))
-            P00_b = P00_b.reshape((N_image, -1))
-            Corr00= Corr00.reshape((N_image, -1))
-            C01 =             C01[:,:,select_and_index['select_2']].reshape((N_image, -1))
-            C01_iso =     C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1))
-            P11_a =         P11_a[:,  select_and_index['select_2']]
-            P11_b =         P11_b[:,  select_and_index['select_2']]
-            P11_a_iso = P11_a_iso[:,  select_and_index['select_2_iso']]
-            P11_b_iso = P11_b_iso[:,  select_and_index['select_2_iso']]
-            C11 =             C11[:,:,select_and_index['select_3']].reshape((N_image, -1))
-            C11_iso =     C11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1))
-            Corr11 =       Corr11[:,:,select_and_index['select_3']].reshape((N_image, -1))
-            Corr11_iso=Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1))
-            
-            # generate single, flattened data vector for_synthesis
-            for_synthesis = torch.cat((
-                (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
-                (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
-                P00_a.log(), P00_b.log(), Corr00.real, Corr00.imag, 
-                C01.real, C01.imag, Corr11.real, Corr11.imag
-            ), dim=-1)
-            for_synthesis_iso = torch.cat((
-                (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
-                (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
-                P00_a_iso.log(), P00_b_iso.log(), Corr00_iso.real, Corr00_iso.imag,
-                C01_iso.real, C01_iso.imag, Corr11_iso.real, Corr11_iso.imag
-            ), dim=-1)
+        # generate single, flattened data vector for_synthesis
+        select_and_index = self.get_index(J, L, normalization, C11_criteria, 2)
+        index_for_synthesis     = select_and_index['index_for_synthesis']
+        index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
+        
+        for_synthesis = torch.cat((
+            (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
+            (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
+            P00_a.reshape((N_image, -1)).log(), 
+            P00_b.reshape((N_image, -1)).log(), 
+            Corr00.reshape((N_image, -1)).real, 
+            Corr00.reshape((N_image, -1)).imag, 
+            C01[:,:,select_and_index['select_2']].reshape((N_image, -1)).real, 
+            C01[:,:,select_and_index['select_2']].reshape((N_image, -1)).imag, 
+            Corr11[:,:,select_and_index['select_3']].reshape((N_image, -1)).real, 
+            Corr11[:,:,select_and_index['select_3']].reshape((N_image, -1)).imag
+        ), dim=-1)
+        for_synthesis_iso = torch.cat((
+            (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
+            (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
+            P00_a_iso.log(), 
+            P00_b_iso.log(), 
+            Corr00_iso.real, 
+            Corr00_iso.imag,
+            C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)).real, 
+            C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)).imag, 
+            Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)).real, 
+            Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)).imag
+        ), dim=-1)
             
         return {'var_a': data_a.var((-2,-1)), 'mean_a': data_a.mean((-2,-1)),
                 'var_b': data_b.var((-2,-1)), 'mean_b': data_b.mean((-2,-1)),
@@ -1404,7 +1375,8 @@ class Scattering2d(object):
         return I1
 
 class Bispectrum_Calculator(object):
-    def __init__(self, k_range, M, N, device='cpu'):
+    def __init__(self, k_range, M, N, device='gpu'):
+        if not torch.cuda.is_available(): device='cpu'
         # k_range in unit of pixel in Fourier space
         self.device = device
         self.k_range = k_range
@@ -1467,10 +1439,11 @@ class Bispectrum_Calculator(object):
                         # *1e8 # / self.B_ref_array[k1, k2, k3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
-def get_power_spectrum(target, bins, device='cpu'):
+def get_power_spectrum(target, bins, device='gpu'):
     '''
     get the power spectrum of a given image
     '''
+    if not torch.cuda.is_available(): device='cpu'
     M, N = target.shape
     modulus = torch.fft.fftn(target, dim=(-2,-1)).abs()
     
@@ -1523,13 +1496,14 @@ from .backend import cdgmm, Modulus, SubsampleFourier, Pad, mulcu, \
     padc, conjugate, maskns, masks_subsample_shift3, \
     extract_shift3
 
-class PhaseHarmonics2d(object):
+class AlphaScattering2d_cov(object):
     def __init__(
         self, M, N, J, L=4, A=4, A_prime=1, delta_j=1, delta_l=4,
         nb_chunks=1, chunk_id=0, shift='all', wavelets='morlet',
         filter_path=None,#'./filters/'
-        device='cpu',
+        device='gpu',
     ):
+        if not torch.cuda.is_available(): device='cpu'
         self.M, self.N, self.J, self.L = M, N, J, L
         self.nb_chunks = nb_chunks  # number of chunks to cut whp cov
         self.chunk_id = chunk_id
