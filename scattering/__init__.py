@@ -1,4 +1,4 @@
-from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, PhaseHarmonics2d, get_power_spectrum, reduced_ST
+from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
 
 import numpy as np
 import time
@@ -19,10 +19,9 @@ def synthesis(
     s_cov_func=None,
 ):
     '''
-the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' 
-the C11_criteria is the condition on j1 and j2 to compute coefficients, 
-in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
+the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
     '''
+    if not torch.cuda.is_available(): device='cpu'
     np.random.seed(seed)
     if C11_criteria is None:
         C11_criteria = 'j2>=j1'
@@ -42,8 +41,9 @@ in addition to the condition that j2 >= j1. Use * or + to connect more than one 
             # if 's_' in estimator_name:
             #     image_init = get_random_data(target[:,], target, M=M, N=N, N_image=target.shape[0], mode='func', seed=seed)
             image_init = np.random.normal(0,1,(target.shape[0],M,N))
-    if image_init=='random phase':
-        image_init = get_random_data(target, seed=seed) # gaussian field
+    elif type(image_init) is str:
+        if image_init=='random phase':
+            image_init = get_random_data(target, seed=seed) # gaussian field
         
     if J is None:
         J = int(np.log2(min(M,N))) - 1
@@ -75,14 +75,14 @@ in addition to the condition that j2 >= j1. Use * or + to connect more than one 
         if estimator_name=='s_cov_func':
             def func(image):
                 s_cov_set = st_calc.scattering_cov(
-                    image, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
                 )
                 return s_cov_func(s_cov_set)
         if estimator_name=='s_cov_iso_para_perp':
             def func(image):
                 result = st_calc.scattering_cov(
-                    image, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
                 )
                 index_type, j1, l1, j2, l2, j3, l3 = result['index_for_synthesis_iso']
@@ -91,7 +91,7 @@ in addition to the condition that j2 >= j1. Use * or + to connect more than one 
         if estimator_name=='s_cov_iso_iso':
             def func(image):
                 result = st_calc.scattering_cov(
-                    image, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
                 )
                 coef = result['for_synthesis_iso']
@@ -106,29 +106,29 @@ in addition to the condition that j2 >= j1. Use * or + to connect more than one 
         if estimator_name=='s_cov_iso':
             def func(image):
                 return st_calc.scattering_cov(
-                    image, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
                 )['for_synthesis_iso']
         if estimator_name=='s_cov':
             def func(image):
                 return st_calc.scattering_cov(
-                    image, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
+                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
                     normalization=normalization
                 )['for_synthesis']
         if estimator_name=='s_cov_2fields_iso':
             def func(image):
                 result = st_calc.scattering_cov_2fields(
-                    image, image_b, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
+                    image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
                     normalization=normalization
                 )
                 select =(result['index_for_synthesis_iso'][0]!=1) * (result['index_for_synthesis_iso'][0]!=3) *\
-                        (result['index_for_synthesis_iso'][0]!=7) * (result['index_for_synthesis_iso'][0]!=11) *\
+                        (result['index_for_synthesis_iso'][0]!=7) * (result['index_for_synthesis_iso'][0]!=11)*\
                         (result['index_for_synthesis_iso'][0]!=15)* (result['index_for_synthesis_iso'][0]!=19)
                 return result['for_synthesis_iso'][:,select]
         if estimator_name=='s_cov_2fields':
             def func(image):
                 result = st_calc.scattering_cov_2fields(
-                    image, image_b, if_synthesis=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
+                    image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
                     normalization=normalization
                 )
                 select =(result['index_for_synthesis'][0]!=1) * (result['index_for_synthesis'][0]!=3) *\
@@ -136,7 +136,7 @@ in addition to the condition that j2 >= j1. Use * or + to connect more than one 
                         (result['index_for_synthesis'][0]!=15)* (result['index_for_synthesis'][0]!=19)
                 return result['for_synthesis'][:,select]
     if 'alpha_cov' in estimator_name:
-        aw_calc = PhaseHarmonics2d(M, N, J, L, wavelets=wavelets, device=device)
+        aw_calc = AlphaScattering2d_cov(M, N, J, L, wavelets=wavelets, device=device)
         def func(image):
             return aw_calc.forward(image)
     if 'bi' in estimator_name:
@@ -305,6 +305,115 @@ def get_w_div(u):
     wz = vyx - vxy
     div = vxx + vyy + vzz
     return np.array([wx, wy, wz, div]).transpose((1,2,3,4,0))
+
+# get random initialization
+def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=None):
+    '''
+    get a gaussian random field with the same power spectrum as the image 'target' (in the 'image' mode),
+    or with an assigned power spectrum function 'target' (in the 'func' mode).
+    '''
+    np.random.seed(seed)
+    if mode == 'image':
+        N_image = target.shape[0]
+        M = target.shape[-2]
+        N = target.shape[-1]
+        random_phase       = np.random.rand(N_image, M//2-1,N-1)
+        random_phase_left  = np.random.rand(N_image, M//2-1, 1)
+        random_phase_top   = np.random.rand(N_image, 1, N//2-1)
+        random_phase_middle= np.random.rand(N_image, 1, N//2-1)
+        random_phase_corners=np.random.randint(0,2,(N_image, 3))/2
+    if mode == 'func':
+        random_phase       = np.random.normal(0,1,(N_image,M//2-1,N-1)) + np.random.normal(0,1,(N_image,M//2-1,N-1))*1j
+        random_phase_left  = (np.random.normal(0,1,(N_image,M//2-1,1)) + np.random.normal(0,1,(N_image,M//2-1,1))*1j)
+        random_phase_top   = (np.random.normal(0,1,(N_image,1,N//2-1)) + np.random.normal(0,1,(N_image,1,N//2-1))*1j)
+        random_phase_middle= (np.random.normal(0,1,(N_image,1,N//2-1)) + np.random.normal(0,1,(N_image,1,N//2-1))*1j)
+        random_phase_corners=np.random.normal(0,1,(N_image,3))
+
+    gaussian_phase = np.concatenate((
+        np.concatenate((
+            random_phase_corners[:,1,None,None],
+            random_phase_left,
+            random_phase_corners[:,2,None,None],
+            -random_phase_left[:,::-1,:],
+        ),axis=-2),
+        np.concatenate((
+            np.concatenate((
+                random_phase_top,
+                random_phase_corners[:,0,None,None],
+                -random_phase_top[:,:,::-1],
+            ),axis=-1),
+            random_phase,
+            np.concatenate((
+                random_phase_middle, 
+                np.zeros(N_image)[:,None,None], 
+                -random_phase_middle[:,:,::-1],
+            ),axis=-1), 
+           -random_phase[:,::-1,::-1],
+        ),axis=-2),
+    ),axis=-1)
+
+    if mode == 'image':
+        gaussian_modulus = np.abs(np.fft.fftshift(np.fft.fft2(target)))
+        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus*np.exp(1j*2*np.pi*gaussian_phase)))
+    if mode == 'func':
+        X = np.arange(0,M)
+        Y = np.arange(0,N)
+        Xgrid, Ygrid = np.meshgrid(X,Y, indexing='ij')
+        R = ((Xgrid-M/2)**2+(Ygrid-N/2)**2)**0.5
+        gaussian_modulus = target(R)
+        gaussian_modulus[M//2, N//2] = 0
+        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus[None,:,:]*gaussian_phase))
+    data = np.fft.fftshift(np.real(gaussian_field))
+    return data
+
+# transforming scattering representation
+def modify_angular(s_cov_set, factor, C01=False, C11=False, keep_para=False):
+    '''
+    a function to change the angular oscillation of C01 and/or C11 by a factor
+    '''
+    index_type, j1, l1, j2, l2, j3, l3 = s_cov_set['index_for_synthesis_iso']
+    L = s_cov_set['P00'].shape[-1]
+    s_cov = s_cov_set['for_synthesis_iso']*1.
+    N_img = len(s_cov)
+    if keep_para:
+        if C01:
+            s_cov[:,index_type==3] += (
+                s_cov[:,index_type==3].reshape(N_img,-1,L) - 
+                s_cov[:,index_type==3].reshape(N_img,-1,L)[:,:,0:1]
+            ).reshape(N_img,-1) * factor
+            s_cov[:,index_type==4] += (
+                s_cov[:,index_type==4].reshape(N_img,-1,L) - 
+                s_cov[:,index_type==4].reshape(N_img,-1,L)[:,:,0:1]
+            ).reshape(N_img,-1) * factor
+        if C11:
+            s_cov[:,index_type==5] += (
+                s_cov[:,index_type==5].reshape(N_img,-1,L,L) - 
+                s_cov[:,index_type==5].reshape(N_img,-1,L,L)[:,:,0:1,0:1]
+            ).reshape(N_img,-1) * factor
+            s_cov[:,index_type==6] += (
+                s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
+                s_cov[:,index_type==6].reshape(N_img,-1,L,L)[:,:,0:1,0:1]
+            ).reshape(N_img,-1) * factor
+    else:
+        if C01:
+            s_cov[:,index_type==3] += (
+                s_cov[:,index_type==3].reshape(N_img,-1,L) - 
+                s_cov[:,index_type==3].reshape(N_img,-1,L).mean(-1)[:,:,None]
+            ).reshape(N_img,-1) * factor
+            s_cov[:,index_type==4] += (
+                s_cov[:,index_type==4].reshape(N_img,-1,L) - 
+                s_cov[:,index_type==4].reshape(N_img,-1,L).mean(-1)[:,:,None]
+            ).reshape(N_img,-1) * factor
+        if C11:
+            s_cov[:,index_type==5] += (
+                s_cov[:,index_type==5].reshape(N_img,-1,L,L) - 
+                s_cov[:,index_type==5].reshape(N_img,-1,L,L).mean((-2,-1))[:,:,None,None]
+            ).reshape(N_img,-1) * factor
+            s_cov[:,index_type==6] += (
+                s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
+                s_cov[:,index_type==6].reshape(N_img,-1,L,L).mean((-2,-1))[:,:,None,None]
+            ).reshape(N_img,-1) * factor
+    return s_cov
 
 # old code for synthesis
 # class model_image(torch.nn.Module):
