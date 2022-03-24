@@ -226,10 +226,11 @@ In particular:
 | ------ | ----------- |
 | 'C00'  | torch tensor with size [N_image, J, L], the power in each wavelet bands      |
 | 'S1'   | torch tensor with size [N_image, J, L] the 1st-order scattering coefficients, i.e., the mean of wavelet modulus fields        |
-|'C01_r' | torch tensor with size [N_image, JxJxL], the orig. x modulus terms averaged over l1. It is flattened from a tensor of size [N_image, J, J, L], where the elements not following j1 < j2 are all set to zeros.
-|'C11diag_r'| torch tensor with size [N_image, J, J, L], the modulus x modulus terms with j1=j2 and l1=l2, averaged over l1. Elements not following j1 < j3 are all set to np.nan.
-|'C11diag'| torch tensor with size [N_image, J, L, J, L], the modulus x modulus terms with j1=j2 and l1=l2. Elements not following j1 < j3 are all set to np.nan.
-|'C11' | torch tensor with size [N_image, J, L, J, L, J, L], the modulus x modulus terms in general. Elements not following j1 <= j2 < j3 are all set to np.nan.
+|'C01_iso' | torch tensor with size [N_image, JxJxL], the orig. x modulus terms averaged over l1. It is flattened from a tensor of size [N_image, J, J, L], where the elements not following j1 < j2 are all set to zeros.
+|'P11'| torch tensor with size [N_image, J, J, L, L], the modulus x modulus terms with j1=j2 and l1=l2. Elements not following j1 < j3 are all set to np.nan.
+|'P11_iso'| torch tensor with size [N_image, J, J, L], the modulus x modulus terms with j1=j2 and l1=l2, averaged over l1. Elements not following j1 < j3 are all set to np.nan.
+|'C11' | torch tensor with size [N_image, J, J, J, L, L, L], the modulus x modulus terms in general. Elements not following j1 <= j2 < j3 are all set to np.nan.
+|'C11_iso' | torch tensor with size [N_image, J, J, J, L, L], the modulus x modulus terms in general. Elements not following j1 <= j2 < j3 are all set to np.nan.
 
 
 ## Example 3: image synthesis with gradient descent
