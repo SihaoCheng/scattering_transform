@@ -59,11 +59,11 @@ bi_calc = scattering.Bispectrum_Calculator(k_range, M=M, N=N)
 bi = bi_calc.forward(image_input)
 ```
 
-### using gpu
+### using gpu / cpu
 
-when defining the calculator, set parameter `device='gpu'`. for example:
+To save computation time, the default device is gpu. However, if no gpu is found in the system, the package will automatically switch to cpu. If you have gpu access but still want to enforce the use of cpu, please set parameter `device='cpu'` when defining the calculator.
 ```python
-st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4, device='gpu')
+st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4, device='cpu')
 ```
 
 
