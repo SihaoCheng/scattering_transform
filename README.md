@@ -22,20 +22,20 @@ import scattering
 ```python
 st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4)
 ```
-2. calculate the scattering coefficients (scattering mean) and scattering correlations:
+2. calculate the scattering coefficients (scattering mean) and scattering covariance:
 ```python
 s_mean = st_calc.scattering_coef(image_input)
 s_cov  = st_calc.scattering_cov (image_input)
 
 print(s_mean['S2'])
-print(s_cov['Corr11_iso'])
+print(s_cov['C11_iso'])
 ```
 
 ### alpha scattering
 
 1. define calculator:
 ```python
-aw_calc = scattering.PhaseHarmonics2d(M=256, N=256, J=5, L=4)
+aw_calc = scattering.AlphaScattering2d_cov(M=256, N=256, J=5, L=4)
 ```
 
 2. calculate the alpha correlations:
@@ -73,15 +73,10 @@ We provide a simple function to perform image synthesis based on the aforementio
 
 ### generating new images with similar textures an/some target image(s)
 ```python
-image_syn = scattering.synthesis(
-    estimator_name='s_cov_iso', 
-    target=image_input, 
-    mode='image',
-    steps=400, learning_rate=0.5
-)
+image_syn = scattering.synthesis(estimator_name='s_cov_iso', target=image_input, mode='image')
 ```
 
-This is an example synthesis result based on the scattering correlations. The left panel is the target image and the right is the synthesised one.
+This is an example synthesis result based on the scattering covariance. The left panel is the target image and the right is the synthesised one.
 
 ![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_image.png?raw=true)
 
@@ -98,7 +93,7 @@ image_syn = scattering.synthesis(
 )
 ```
 
-This is an example of interpolating the scattering correlation values from two fields. The leftmost and rightmost ones are two input images.
+This is an example of interpolating the scattering covariance values from two fields. The leftmost and rightmost ones are two input images.
 
 ![](https://github.com/abrochar/wavelet-ops/blob/main/synthesis_coef.png?raw=true)
 
@@ -168,9 +163,7 @@ ST_calculator = ST.ST_2D(filter_set, J, L, device='gpu', weight=None)
 
 input_images = np.empty((30, M, N), dtype=np.float32)
 
-S, S0, S1, S2, _, _, _, _ = ST_calculator.forward(
-    input_images, J, L
-)
+S, S0, S1, S2, _, _, _, _ = ST_calculator.forward(input_images, J, L)
 ```
 
 The input data should be a numpy array or torch tensor of images with dimensions (N_image, M, N). Output are torch tensors in the assigned computing device, e.g., cuda() or cpu. Parallel calculation is automatically implemented by `torch`, for both cpu and gpu. The code is optimized to have as much parallel computation as possible, but when the number of images in a batch is large, setting "if_large_batch=True" will significantly reduce the memory use (in this large-batch case, as the parallelization is already assigned among images, this setting will not reduce the speed. But in small-batch cases, please just use the default if_large_batch=False).
@@ -194,17 +187,16 @@ The default j1j2_criteria='j2>j1' means that only coefficients with j2>j1 are ca
 coefficients are set to zeros in the output arrays.
 
 
-## Example 2: computing phase harmonic correlations
+## Example 2: computing alpha-phase correlations
 
-Similarly, I also provide a fast code for computing a subset of phase harmonic correlations. Again, first we can generate the Morlet wavelets to be used.
+Similarly, I also provide a fast code for computing a subset of alpha-phase correlations. Again, first we can generate the Morlet wavelets to be used.
 ```python
 J = 8
 L = 4
-M = 512
-N = 512
+M = N = 512
 filter_set = ST.FiltersSet(M, N, J, L).generate_morlet(precision='single')
 ```
-Then, define a ST calculator and feed it with images. To compute the phase harmonic correlations, we call the method "phase_harmonics" instead of "forward".
+Then, define a ST calculator and feed it with images. To compute the alpha-phase correlations, we call the method "phase_harmonics" instead of "forward".
 ```python
 ST_calculator = ST.ST_2D(filter_set, J, L, device='gpu', weight=None)
 
@@ -215,7 +207,7 @@ PH = ST_calculator.phase_harmonics(
 )
 ```
 
-It returns a dictionary with different sets of coefficients including three types of phase harmonic correlations. (Note that the notation here is slightly different from the original paper. Here we use the number to represent the order of non-linearity. So C00 are the linear correlations, C01 are the correlation between the original field and modulus field (0th- and 1st-order non-linear fields), etc.)
+It returns a dictionary with different sets of coefficients including three types of alpha-phase correlations. (Note that the notation here is slightly different from the original paper. Here we use the number to represent the order of non-linearity. So C00 are the linear correlations, C01 are the correlation between the original field and modulus field (0th- and 1st-order non-linear fields), etc.)
 | type    | definition |
 | ------  | ----------- |
 |orig. x orig.    |   C00 = <(I * psi)(I * psi)>  |
