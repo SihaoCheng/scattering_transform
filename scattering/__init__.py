@@ -1,15 +1,19 @@
-from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
+import os
+dirpath = os.path.dirname(__file__)
 
 import numpy as np
 import time
 import torch
+
+from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
+
 
 # synthesis
 def synthesis(
     estimator_name, target, image_init=None, image_ref=None, image_b=None,
     J=None, L=4, M=None, N=None,
     mode='image', optim_algorithm='LBFGS', steps=300, learning_rate=0.2,
-    device='gpu', wavelets='morlet', savedir=None, seed=None,
+    device='gpu', wavelets='morlet', seed=None,
     bispectrum_bins=None, bispectrum_bin_type='log',
     if_large_batch=False,
     C11_criteria=None,
@@ -17,6 +21,7 @@ def synthesis(
     precision='single',
     print_each_step=False,
     s_cov_func=None,
+    s_cov_func_params=[],
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
@@ -75,10 +80,11 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if estimator_name=='s_cov_func':
             def func(image):
                 s_cov_set = st_calc.scattering_cov(
-                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                    image, use_ref=True, if_large_batch=if_large_batch, 
+                    C11_criteria=C11_criteria, 
                     normalization=normalization
                 )
-                return s_cov_func(s_cov_set)
+                return s_cov_func(s_cov_set, s_cov_func_params)
         if estimator_name=='s_cov_iso_para_perp':
             def func(image):
                 result = st_calc.scattering_cov(
@@ -157,8 +163,9 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
     # synthesis
     image_syn = synthesis_general(
         target, image_init, func, quadratic_loss, 
-        mode=mode, optim_algorithm=optim_algorithm, steps=steps, learning_rate=learning_rate,
-        precision=precision, print_each_step=print_each_step
+        mode=mode, 
+        optim_algorithm=optim_algorithm, steps=steps, learning_rate=learning_rate,
+        device=device, precision=precision, print_each_step=print_each_step
     )
     return image_syn
 
@@ -166,7 +173,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
 def synthesis_general(
     target, image_init, estimator_function, loss_function, 
     mode='image', optim_algorithm='LBFGS', steps=100, learning_rate=0.5,
-    device='gpu', savedir=None, precision='single', print_each_step=False
+    device='gpu', precision='single', print_each_step=False
 ):
     # define parameters
     N_image = image_init.shape[0]
@@ -262,11 +269,11 @@ def synthesis_general(
     return image_model.param.reshape(N_image,M,N).cpu().detach().numpy()
 
 # image pre-processing
-def downsample(image):
+def binning2x2(image):
     return (image[...,::2,::2] + image[...,1::2,::2] + image[...,::2,1::2] + image[...,1::2,1::2])/4
 
 def whiten(image):
-    return (image - image.mean((-2,-1)))/image.std((-2,-1))
+    return (image - image.mean((-2,-1))[:,None,None]) / image.std((-2,-1))[:,None,None]
 
 def remove_slope(images):
     '''
