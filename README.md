@@ -69,7 +69,7 @@ st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4, device='cpu')
 
 ## Synthesis example
 
-We provide a simple function to perform image synthesis based on the aforementioned coefficients. The default device is 'gpu'. If you do not have access to a gpu, please set `device='cpu'`.
+We provide a simple function to perform image synthesis based on the aforementioned coefficients. The logic of using gpu/cpu is the same as described above.
 
 ### generating new images with similar textures an/some target image(s)
 ```python
