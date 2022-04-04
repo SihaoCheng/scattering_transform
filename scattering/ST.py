@@ -343,12 +343,69 @@ class FiltersSet(object):
         # angular[np.cos(theta - theta0)<0] = 0
         tophat_fft = (radial * angular).sum((0,1)) > 0
         return tophat_fft
+        
+    #  gau_harmonic
+    def generate_gau_harmonic(self, if_save=False, save_dir=None, precision='single'):
+        if precision=='double':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.complex128)
+        if precision=='single':
+            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.complex64)
+        # psi
+        for j in range(self.J):
+            for l in range(self.L):
+                wavelet_Fourier = self.gau_harmonic_2d(
+                    M=self.M,
+                    N=self.N, 
+                    k0= 0.375 * 2 * np.pi / 2**j,
+                    l=l,
+                )
+                wavelet_Fourier[0,0] = 0
+                if precision=='double':
+                    psi[j,l] = torch.from_numpy(wavelet_Fourier)
+                if precision=='single':
+                    psi[j,l] = torch.from_numpy(wavelet_Fourier.astype(np.complex64))
+        # phi
+        if precision=='double':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real
+            ) * (self.M * self.N)**0.5
+        if precision=='single':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1), 0, 0).real.astype(np.float32)
+            ) * (self.M * self.N)**0.5
+        
+        filters_set = {'psi':psi, 'phi':phi}
+        if if_save:
+            np.save(
+                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
+                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
+                np.array([{'filters_set': filters_set}])
+            )
+        return filters_set
+        
+    def gau_harmonic_2d(self, M, N, k0, l):
+        xx = np.empty((2,2, M, N))
+        yy = np.empty((2,2, M, N))
+
+        for ii, ex in enumerate([-1, 0]):
+            for jj, ey in enumerate([-1, 0]):
+                xx[ii,jj], yy[ii,jj] = np.mgrid[
+                    ex * M : M + ex * M, 
+                    ey * N : N + ey * N
+                ]
+        k = ((xx/M)**2 + (yy/N)**2)**0.5 * 2 * np.pi
+        theta = np.arctan2(yy, xx)
+        
+        # profile = radial * angular
+        wavelet_fft = (2*k/k0)**2 * np.exp(-k**2/(2 * (k0/1.4)**2)) * np.exp(1j * l * theta)
+        wavelet_fft[k==0] = 0
+        return wavelet_fft.sum((0,1))
 
 class Scattering2d(object):
     def __init__(
         self, M, N, J, L, device='gpu', 
         wavelets='morlet', filters_set=None, weight=None, 
-        precision='single', ref=None, ref_a=None, ref_b=None,
+        precision='single', ref=None, ref_a=None, ref_b=None
     ):
         if not torch.cuda.is_available(): device='cpu'
         if filters_set is None:
@@ -368,6 +425,10 @@ class Scattering2d(object):
                 filters_set = FiltersSet(
                     M=M, N=N, J=J, L=L,
                 ).generate_shannon()
+            if wavelets=='gau_harmonic':
+                filters_set = FiltersSet(
+                    M=M, N=N, J=J, L=L,
+                ).generate_gau_harmonic()
             self.M, self.N = M, N
         else:
             self.M, self.N = filters_set['psi'][0][0].shape
@@ -404,11 +465,11 @@ class Scattering2d(object):
                 self.weight_downsample_list.append(
                     weight_downsample / weight_downsample.mean()
                 )
-        self.edge_masks = torch.empty((J,self.M, self.N))
+        self.edge_masks = torch.empty((J, self.M, self.N))
         X, Y = torch.meshgrid(torch.arange(self.M), torch.arange(self.N), indexing='ij')
         for j in range(J):
-            self.edge_masks[j] = (X>2**j*2)*(X<self.M-2**j*2)*\
-                    (Y>2**j*2)*(Y<self.N-2**j*2)
+            self.edge_masks[j] = (X>=2**j*2)*(X<=self.M-2**j*2)*\
+                    (Y>=2**j*2)*(Y<=self.N-2**j*2)
         
         # device
         self.device = device
@@ -491,17 +552,15 @@ class Scattering2d(object):
         select_1 = j1 > -1
         invalid = j1[None,select_1]*0-1
         index_1 = torch.cat(
-            (j1[None,select_1], l1[None,select_1], invalid, invalid, invalid, invalid),
-            dim=0
-        )
+            (j1[None,select_1], invalid, invalid, l1[None,select_1], invalid, invalid),
+            dim=0)
         # one-scale isotropic coef
         j1, = torch.meshgrid(torch.arange(J), indexing='ij')
         select_1_iso = j1 > -1
         invalid = j1[None,select_1_iso]*0-1
         index_1_iso = torch.cat(
             (j1[None,select_1_iso], invalid, invalid, invalid, invalid, invalid),
-            dim=0
-        )
+            dim=0)
         # two-scale coef
         j1, j2, l1, l2 = torch.meshgrid(
             torch.arange(J), torch.arange(J), 
@@ -510,21 +569,17 @@ class Scattering2d(object):
         select_2 = j1 <= j2
         invalid = j1[None,select_2]*0-1
         index_2 = torch.cat(
-            (j1[None,select_2], l1[None,select_2], 
-             j2[None,select_2], l2[None,select_2],
-             invalid, invalid),
-            dim=0
-        )
+            (j1[None,select_2], j2[None,select_2], invalid, 
+             l1[None,select_2], l2[None,select_2], invalid),
+            dim=0)
         # two-scale isotropic coef
         j1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), indexing='ij')
         select_2_iso = j1 <= j2
         invalid = j1[None,select_2_iso]*0-1
         index_2_iso = torch.cat(
-            (j1[None,select_2_iso], invalid,
-             j2[None,select_2_iso], l2[None,select_2_iso],
-             invalid, invalid),
-            dim=0
-        )
+            (j1[None,select_2_iso], j2[None,select_2_iso], invalid,
+             invalid,               l2[None,select_2_iso], invalid),
+            dim=0)
         # three-scale coef
         j1, j2, j3, l1, l2, l3 = torch.meshgrid(
             torch.arange(J), torch.arange(J), torch.arange(J), 
@@ -535,11 +590,9 @@ class Scattering2d(object):
         else:
             select_3 = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria) * ~((l1==l2)*(j1==j2))
         index_3 = torch.cat(
-            (j1[None,select_3], l1[None,select_3], 
-             j2[None,select_3], l2[None,select_3],
-             j3[None,select_3], l3[None,select_3],),
-            dim=0
-        )
+            (j1[None,select_3], j2[None,select_3], j3[None,select_3],
+             l1[None,select_3], l2[None,select_3], l3[None,select_3]),
+            dim=0)
         # three-scale isotropic coef
         j1, j2, j3, l2, l3 = torch.meshgrid(
             torch.arange(J), torch.arange(J), torch.arange(J), 
@@ -551,11 +604,9 @@ class Scattering2d(object):
             select_3_iso = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria) * ~((l2==0)*(j1==j2))
         invalid = j1[None,select_3_iso]*0-1
         index_3_iso = torch.cat(
-            (j1[None,select_3_iso], invalid,
-             j2[None,select_3_iso], l2[None,select_3_iso],
-             j3[None,select_3_iso], l3[None,select_3_iso],),
-            dim=0
-        )
+            (j1[None,select_3_iso], j2[None,select_3_iso], j3[None,select_3_iso],
+             invalid,               l2[None,select_3_iso], l3[None,select_3_iso]),
+            dim=0)
         # concatenate index of all coef
         index_mean = index_1[:,0:1]*0-1
         if num_field==1:
@@ -629,7 +680,8 @@ class Scattering2d(object):
                 }
     
     def scattering_coef(
-        self, data, if_large_batch=False, j1j2_criteria='j2>=j1', algorithm='fast', pseudo_coef=1
+        self, data, if_large_batch=False, j1j2_criteria='j2>=j1', algorithm='fast', 
+        pseudo_coef=1, remove_edge=False,
     ):
         M, N, J, L = self.M, self.N, self.J, self.L
         N_image = data.shape[0]
@@ -837,43 +889,94 @@ class Scattering2d(object):
     # self.scattering_mean = self.scattering_coef
     
     def scattering_cov(
-        self, data, if_large_batch=False, C11_criteria=None,
-        use_ref=False, normalization='P00',
+        self, data, if_large_batch=False, C11_criteria=None, 
+        use_ref=False, normalization='P00', remove_edge=False, 
     ):
         '''
         Calculates the scattering correlations for a batch of images, including:
-        orig. x orig.:     P00 = <(I * psi)(I * psi)*> = L2(I * psi)^2
-        orig. x modulus:   C01 = <(I * psi2)(|I * psi1| * psi2)*> / L2(I * psi2) / L2(|I * psi1| * psi2)
-        modulus x modulus: P11 = <(|I * psi1| * psi3)(|I * psi1| * psi3)>
-        modulus x modulus: C11 = <(|I * psi1| * psi3)(|I * psi2| * psi3)>
-                        Corr11 = C11 / L2(|I * psi1| * psi3) / L2(|I * psi2| * psi3)
-            Parameters
-            ----------
-            data : numpy array or torch tensor
-                image set, with size [N_image, x-sidelength, y-sidelength]
-            Returns
-            -------
-            dict{'P00', 'P00_iso', 'S1', 'S1_iso', 'P11','P11_iso', 
-                 'C01', 'C01_iso', 'C11', 'C11_iso', 'Corr11', 'Corr11_iso'}
-            a dictionary containing different sets of scattering covariance coefficients
-                'P00': torch tensor with size [N_image, J, L]
-                    the power in each wavelet bands
-                'S1' : torch tensor with size [N_image, J, L]
-                    the 1st-order scattering coefficients, i.e., the mean of wavelet 
-                    modulus fields
-                'C01_iso' : torch tensor with size [N_image, J*J*L]
-                    the orig. x modulus terms averaged over l1. It is flattened from
-                    a tensor of size [N_image, J, J, L], where the elements not following
-                    j1 <= j2 are all set to np.nan.
-                'P11_iso' : torch tensor with size [N_image, J, J, L]
-                    the modulus x modulus terms with j1=j2 and l1=l2, averaged over l1.
-                    Elements not following j1 < j3 are all set to np.nan.
-                'P11'     : torch tensor with size [N_image, J, L, J, L]
-                    the modulus x modulus terms with j1=j2 and l1=l2. Elements not following
-                    j1 <= j3 are all set to np.nan.
-                'C11'     : torch tensor with size [N_image, J, L, J, L, J, L]
-                    the modulus x modulus terms in general. Elements not following
-                    j1 <= j2 <= j3 are all set to np.nan.
+        orig. x orig.:     
+                        P00 = <(I * psi)(I * psi)*> = L2(I * psi)^2
+        orig. x modulus:   
+                        C01 = <(I * psi2)(|I * psi1| * psi2)*> / factor
+            when normalization == 'P00', factor = L2(I * psi2) * L2(I * psi1)
+            when normalization == 'P11', factor = L2(I * psi2) * L2(|I * psi1| * psi2)
+        modulus x modulus: 
+                        C11_pre_norm = <(|I * psi1| * psi3)(|I * psi2| * psi3)>
+                        C11 = C11_pre_norm / factor
+            when normalization == 'P00', factor = L2(I * psi1) * L2(I * psi2)
+            when normalization == 'P11', factor = L2(|I * psi1| * psi3) * L2(|I * psi2| * psi3)
+        modulus x modulus (auto): 
+                        P11 = <(|I * psi1| * psi2)(|I * psi1| * psi2)*>
+        Parameters
+        ----------
+        data : numpy array or torch tensor
+            image set, with size [N_image, x-sidelength, y-sidelength]
+        if_large_batch : Bool (=False)
+            It is recommended to use "False" unless one meets a memory issue
+        C11_criteria : str or None (=None)
+            Only C11 coefficients that satisfy this criteria will be computed.
+            Any expressions of j1, j2, and j3 that can be evaluated as a Bool 
+            is accepted.The default "None" corresponds to "j1 <= j2 <= j3".
+        use_ref : Bool (=False)
+            When normalizing, whether or not to use the normalization factor
+            computed from a reference field. For just computing the statistics,
+            the default is False. However, for synthesis, set it to "True" will
+            stablize the optimization process.
+        normalization : str 'P00' or 'P11' (='P00')
+            Whether 'P00' or 'P11' is used as the normalization factor for C01
+            and C11.
+        remove_edge : Bool (=False)
+            If true, the edge region with a width of rougly the size of the largest
+            wavelet involved is excluded when taking the global average to obtain
+            the scattering coefficients.
+        
+        Returns
+        -------
+        dict{'mean', 'var', 
+            'P00', 'P00', 'S1', 'S1_iso', 'C01', 'C01_iso', 'C11', 'C11_iso', 
+            'C11_pre_norm', 'C11_pre_norm_iso', 'P11', 'P11_iso',
+            'for_synthesis', 'for_synthesis_iso', 
+            'index_for_synthesis', 'index_for_synthesis_iso' 
+        }:
+        a dictionary containing different sets of scattering covariance coefficients.
+        'P00'       : torch tensor with size [N_image, J, L] (# image, j1, l1)
+            the power in each wavelet bands (the orig. x orig. term)
+        'P00_iso'   : torch tensor with size [N_image, J] (# image, j1)
+            'P00' averaged over the last dimension (l1)
+        'S1'        : torch tensor with size [N_image, J, L] (# image, j1, l1)
+            the 1st-order scattering coefficients, i.e., the mean of wavelet modulus fields
+        'S1_iso'    : torch tensor with size [N_image, J] (# image, j1)
+            'S1' averaged over the last dimension
+        'C01'       : torch tensor with size [N_image, J, J, L, L] (# image, j1, j2, l1, l2)
+            the orig. x modulus terms. Elements with j1 < j2 are all set to np.nan and not computed.
+        'C01_iso'   : torch tensor with size [N_image, J, J, L] (# image, j1, j2, l2-l1)
+            'C01' averaged over l1 while keeping l2-l1 constant.
+        'C11'       : torch tensor with size [N_image, J, J, J, L, L, L] (# image, j1, j2, j3, l1, l2, l3)
+            the modulus x modulus terms. Elements not satisfying j1 <= j2 <= j3 and the conditions
+            defined in 'C11_criteria' are all set to np.nan and not computed.
+        'C11_iso    : torch tensor with size [N_image, J, J, J, L, L] (# image, j1, j2, j3, l2-l1, l3-l1)
+            'C11' averaged over l1 while keeping l2-l1 and l3-l1 constant.
+        'C11_pre_norm' and 'C11_pre_norm_iso': pre-normalized modulus x modulus terms.
+        'P11'       : torch tensor with size [N_image, J, J, L, L] (# image, j1, j2, l1, l2)
+            the modulus x modulus terms with the two wavelets within modulus the same. Elements not following
+            j1 <= j3 are set to np.nan and not computed.
+        'P11_iso'   : torch tensor with size [N_image, J, J, L] (# image, j1, j2, l2-l1)
+            'P11' averaged over l1 while keeping l2-l1 constant.
+        'for_synthesis' : torch tensor with size [N_image, -1] (# image, index of coef.)
+            flattened coefficients, containing mean/var, log(P00), log(S1), C01, and C11
+        'for_synthesis_iso' : torch tensor with size [N_image, -1] (# image, index of coef.)
+            flattened coefficients, containing mean/var, log(P00_iso), log(S1_iso), C01_iso, and C11_iso
+        'index_for_synthesis' : torch tensor with size [7, -1] (index name, index of coef.)
+            the index of the flattened tensor "for_synthesis", can be used to select subset of coef.
+            the rows have the following meanings:
+                index_type, j1, j2, j3, l1, l2, l3 = index_for_synthesis[:]
+                where index_type is encoded by integers in the following way:
+                    0: mean/var     1: log(P00)     2: log(S1)      
+                    3: C01_real     4: C01_imag     5: C11_real     6: C011_imag
+                    (7: P11)
+                j range from 0 to J, l range from 0 to L.
+        'index_for_synthesis_iso' : torch tensor with size [7, -1] (index name, index of coef.)
+            same as 'index_for_synthesis_iso' except that it is for isotropic coefficients.
         '''
         if C11_criteria is None:
             C11_criteria = 'j2>=j1'
@@ -899,13 +1002,13 @@ class Scattering2d(object):
         S1 = torch.zeros((N_image,J,L), dtype=data.dtype)
         C01 = torch.zeros((N_image,J,J,L,L), dtype=data_f.dtype) + np.nan
         P11 = torch.zeros((N_image,J,J,L,L), dtype=data.dtype) + np.nan
+        C11_pre_norm = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
         C11 = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
-        Corr11 = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
         
         C01_iso = torch.zeros((N_image,J,J,L), dtype=data_f.dtype)
         P11_iso = torch.zeros((N_image,J,J,L), dtype=data.dtype)
+        C11_pre_norm_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data_f.dtype)
         C11_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data_f.dtype)
-        Corr11_iso= torch.zeros((N_image,J,J,J,L,L), dtype=data_f.dtype)
         
         # move torch tensors to gpu device, if required
         if self.device=='gpu':
@@ -913,20 +1016,27 @@ class Scattering2d(object):
             S1        = S1.cuda()
             C01       = C01.cuda()
             P11       = P11.cuda()
+            C11_pre_norm=C11_pre_norm.cuda()
             C11       = C11.cuda()
-            Corr11    = Corr11.cuda()
             C01_iso   = C01_iso.cuda()
             P11_iso   = P11_iso.cuda()
+            C11_pre_norm_iso=C11_pre_norm_iso.cuda()
             C11_iso   = C11_iso.cuda()
-            Corr11_iso= Corr11_iso.cuda()
         
         # calculate scattering fields
         I1 = torch.fft.ifftn(
             data_f[:,None,None,:,:] * filters_set[None,:J,:,:,:], dim=(-2,-1)
         ).abs()
         I1_f= torch.fft.fftn(I1, dim=(-2,-1))
-        P00 = (I1**2).mean((-2,-1))
-        S1  = I1.mean((-2,-1))
+        
+        #
+        if remove_edge: 
+            edge_mask = self.edge_masks[:,None,:,:]
+            edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,:,None,None]
+        else: 
+            edge_mask = 1
+        P00 = (I1**2 * edge_mask).mean((-2,-1))
+        S1  = (I1 * edge_mask).mean((-2,-1))
         
         # calculate the covariance and correlations of the scattering fields
         # only use the low-k Fourier coefs when calculating large-j scattering coefs.
@@ -937,13 +1047,18 @@ class Scattering2d(object):
             wavelet_f3 = self.cut_high_k_off(filters_set[j3], dx3, dy3)
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
+            if remove_edge: 
+                edge_mask = self.cut_high_k_off(self.edge_masks[j3], dx3, dy3)
+                edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,None,None]
+            else: 
+                edge_mask = 1
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
             for j2 in range(0,j3+1):
                 # [N_image,l2,l3,x,y]
                 P11_temp = (
                     I1_f_small[:,j2].view(N_image,L,1,M3,N3).abs()**2 * 
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3_squared.view(1,1,L,M3,N3) * edge_mask
                 ).mean((-2,-1)) * fft_factor
                 if use_ref:
                     if normalization=='P11':
@@ -964,7 +1079,7 @@ class Scattering2d(object):
                     if eval(C11_criteria):
                         if not if_large_batch:
                             # [N_image,l1,l2,l3,x,y]
-                            C11[:,j1,j2,j3,:,:,:] = (
+                            C11_pre_norm[:,j1,j2,j3,:,:,:] = (
                                 I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
                                 torch.conj(I1_f_small[:,j2].view(N_image,1,L,1,M3,N3)) *
                                 wavelet_f3_squared.view(1,1,1,L,M3,N3)
@@ -972,7 +1087,7 @@ class Scattering2d(object):
                         else:
                             for l1 in range(L):
                             # [N_image,l2,l3,x,y]
-                                C11[:,j1,j2,j3,l1,:,:] = (
+                                C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
                                     I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
                                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
                                     wavelet_f3_squared.view(1,1,L,M3,N3)
@@ -980,18 +1095,22 @@ class Scattering2d(object):
         # define P11 from diagonals of C11
         for j1 in range(J):
             for l1 in range(L):
-                P11[:,j1,:,l1,:] = C11[:,j1,j1,:,l1,l1,:].real
+                P11[:,j1,:,l1,:] = C11_pre_norm[:,j1,j1,:,l1,l1,:].real
         # normalizing C11
         if normalization=='P00':
             if use_ref: P = ref_P00
             else: P = P00
             #.view(N_image,J,1,1,L,1,1) * .view(N_image,1,J,1,1,L,1)
-            Corr11 = C11 / (P[:,:,None,None,:,None,None] * P[:,None,:,None,None,:,None])**0.5
+            C11 = C11_pre_norm / (
+                P[:,:,None,None,:,None,None] * P[:,None,:,None,None,:,None]
+            )**0.5
         if normalization=='P11':
             if use_ref: P = ref_P11
             else: P = P11
             #.view(N_image,J,1,J,L,1,L) * .view(N_image,1,J,J,1,L,L)
-            Corr11 = C11 / (P[:,:,None,:,:,None,:] * P[:,None,:,:,None,:,:])**0.5
+            C11 = C11_pre_norm / (
+                P[:,:,None,:,:,None,:] * P[:,None,:,:,None,:,:]
+            )**0.5
         # average over l1 to obtain simple isotropic statistics
         P00_iso = P00.mean(-1)
         S1_iso  = S1.mean(-1)
@@ -1000,9 +1119,9 @@ class Scattering2d(object):
                 C01_iso[...,(l2-l1)%L] += C01[...,l1,l2]
                 P11_iso[...,(l2-l1)%L] += P11[...,l1,l2]
                 for l3 in range(L):
-                    C11_iso   [...,(l2-l1)%L,(l3-l1)%L] +=    C11[...,l1,l2,l3]
-                    Corr11_iso[...,(l2-l1)%L,(l3-l1)%L] += Corr11[...,l1,l2,l3]
-        C01_iso /= L; P11_iso /= L; C11_iso /= L; Corr11_iso /= L
+                    C11_pre_norm_iso[...,(l2-l1)%L,(l3-l1)%L]+=C11_pre_norm[...,l1,l2,l3]
+                    C11_iso[...,(l2-l1)%L,(l3-l1)%L] += C11[...,l1,l2,l3]
+        C01_iso /= L; P11_iso /= L; C11_pre_norm_iso /= L; C11_iso /= L
         
         
         # get a single, flattened data vector for_synthesis
@@ -1016,8 +1135,8 @@ class Scattering2d(object):
             S1.reshape((N_image, -1)).log(),
             C01[:,select_and_index['select_2']].real, 
             C01[:,select_and_index['select_2']].imag, 
-            Corr11[:,select_and_index['select_3']].real, 
-            Corr11[:,select_and_index['select_3']].imag
+            C11[:,select_and_index['select_3']].real, 
+            C11[:,select_and_index['select_3']].imag
         ), dim=-1)
         for_synthesis_iso = torch.cat((
             (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
@@ -1025,21 +1144,23 @@ class Scattering2d(object):
             S1_iso.log(),
             C01_iso[:,select_and_index['select_2_iso']].real, 
             C01_iso[:,select_and_index['select_2_iso']].imag, 
-            Corr11_iso[:,select_and_index['select_3_iso']].real, 
-            Corr11_iso[:,select_and_index['select_3_iso']].imag
+            C11_iso[:,select_and_index['select_3_iso']].real, 
+            C11_iso[:,select_and_index['select_3_iso']].imag
         ), dim=-1)
         if normalization=='P11':
             for_synthesis     = torch.cat(
-                (for_synthesis,     P11[:,select_and_index['select_2']].log()),         dim=-1)
+                (for_synthesis,     P11[:,select_and_index['select_2']].log()),         
+                dim=-1)
             for_synthesis_iso = torch.cat(
-                (for_synthesis_iso, P11_iso[:,select_and_index['select_2_iso']].log()), dim=-1)
+                (for_synthesis_iso, P11_iso[:,select_and_index['select_2_iso']].log()), 
+                dim=-1)
             
         return {'var': data.var((-2,-1)), 'mean': data.mean((-2,-1)),
                 'P00':P00, 'P00_iso':P00_iso,
                 'S1' : S1, 'S1_iso' : S1_iso,
                 'C01':C01, 'C01_iso':C01_iso,
-                'C11':C11, 'C11_iso':C11_iso,
-                'Corr11': Corr11,'Corr11_iso': Corr11_iso,
+                'C11_pre_norm':C11_pre_norm, 'C11_pre_norm_iso':C11_pre_norm_iso,
+                'C11': C11,'C11_iso': C11_iso,
                 'P11':P11, 'P11_iso':P11_iso,
                 'for_synthesis': for_synthesis, 'for_synthesis_iso': for_synthesis_iso,
                 'index_for_synthesis': index_for_synthesis,
@@ -1047,8 +1168,8 @@ class Scattering2d(object):
         }
     
     def scattering_cov_2fields(
-        self, data_a, data_b, if_large_batch=False, C11_criteria=None,
-        use_ref=False, normalization='P00',
+        self, data_a, data_b, if_large_batch=False, C11_criteria=None, 
+        use_ref=False, normalization='P00', remove_edge=False,
     ):
         if C11_criteria is None: C11_criteria = 'j2>=j1'
             
