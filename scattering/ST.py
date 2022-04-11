@@ -403,10 +403,45 @@ class FiltersSet(object):
 
 class Scattering2d(object):
     def __init__(
-        self, M, N, J, L, device='gpu', 
+        self, M, N, J, L=4, device='gpu', 
         wavelets='morlet', filters_set=None, weight=None, 
         precision='single', ref=None, ref_a=None, ref_b=None
     ):
+        '''
+        M: int (positive)
+            the number of pixels along x direction
+        N: int (positive)
+            the number of pixels along y direction
+        J: int (positive)
+            the number of dyadic scales used for scattering analysis. 
+            It is at most int(log2(min(M,N))) - 1.
+        L: int (positive)
+            the number of orientations used for oriented wavelets; 
+            or the number of harmonics used for harmonic wavelets (L=1 means only monopole is used).
+        device: str ('gpu' or 'cpu')
+            the device to compute
+        wavelets: str
+            type of wavelets, can be one of the following:
+            'morlet': morlet wavelet (basically off-center gaussians in Fourier space)
+            'BS'    : bump-steerable wavelets (see https://arxiv.org/pdf/1810.12136.pdf)
+            'gau'   : with the same angular dependence as the bump-steerable, but the radial
+                    profile as radial = (2*k/k0)**2 * np.exp(-k**2/(2 * (k0/1.4)**2)). It is 
+                    similar to morlet wavelet in radial profile but has a more uniform
+                    orientation coverage.
+            'shannon': shannon wavelets, (top-hat profiles in Fourier space)
+            'gau_harmonic': its radial profile is the same as 'gau', while the orientation 
+                    profile is cyclic Fourier modes (harmonics).
+        filters_set : None or dict
+            if None, then it is generated automatically by the parameter provided
+            otherwise, it should be a dictionary with {'psi', 'phi'}, where 'psi'
+                is a torch tensor with size [J, L, M, N].
+        weight: numpy array or torch tensor with size [M, N]
+        precision: str ('single' or 'double')
+        ref: None or numpy array or torch tensor with size [N_image, M, N] 
+            the reference image used to normalize the scattering covariance. 
+        ref_a, ref_b: None or numpy array or torch tensor with size [N_image, M, N]
+            the reference images used to normalized the 2-field scattering covariance.
+        '''
         if not torch.cuda.is_available(): device='cpu'
         if filters_set is None:
             if wavelets=='morlet':
