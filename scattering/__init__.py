@@ -22,6 +22,7 @@ def synthesis(
     print_each_step=False,
     s_cov_func=None,
     s_cov_func_params=[],
+    Fourier=False,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
@@ -165,7 +166,8 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         target, image_init, func, quadratic_loss, 
         mode=mode, 
         optim_algorithm=optim_algorithm, steps=steps, learning_rate=learning_rate,
-        device=device, precision=precision, print_each_step=print_each_step
+        device=device, precision=precision, print_each_step=print_each_step,
+        Fourier=Fourier,
     )
     return image_syn
 
@@ -173,7 +175,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
 def synthesis_general(
     target, image_init, estimator_function, loss_function, 
     mode='image', optim_algorithm='LBFGS', steps=100, learning_rate=0.5,
-    device='gpu', precision='single', print_each_step=False
+    device='gpu', precision='single', print_each_step=False, Fourier=False
 ):
     # define parameters
     N_image = image_init.shape[0]
@@ -204,10 +206,22 @@ def synthesis_general(
     
     # define optimizable image model
     class OptimizableImage(torch.nn.Module):
-        def __init__(self, image_init):
-            super(OptimizableImage, self).__init__()
-            self.param = torch.nn.Parameter( image_init.reshape(1,-1) )
-    image_model = OptimizableImage(image_init)
+        def __init__(self, input_init, Fourier=False):
+            # super(OptimizableImage, self).__init__()
+            super().__init__()
+            self.param = torch.nn.Parameter( input_init )
+            
+            if Fourier: 
+                self.image = torch.fft.ifftn(
+                    self.param[0] + 1j*self.param[1],
+                    dim=(-2,-1)).real
+            else: self.image = self.param
+    
+    if Fourier: 
+        temp = torch.fft.fftn(image_init, dim=(-2,-1))
+        input_init = torch.cat((temp.real[None,...], temp.imag[None,...]), dim=0)
+    else: input_init = image_init
+    image_model = OptimizableImage(input_init, Fourier)
         
     # define optimizer
     if optim_algorithm   =='Adam':
@@ -228,10 +242,10 @@ def synthesis_general(
     def closure():
         optimizer.zero_grad()
         loss = 0
-        estimator_model = estimator_function(image_model.param.reshape(N_image,M,N))
+        estimator_model = estimator_function(image_model.image)
         loss = loss_function(estimator_model, estimator_target)
         if print_each_step:
-            if optim_algorithm=='LBFGS' or (optim_algorithm!='LBFGS' and (i%100== 0 or i%100==-1)):
+            if optim_algorithm=='LBFGS' or (optim_algorithm!='LBFGS' and (i%100==0 or i%100==-1)):
                 print((estimator_model-estimator_target).abs().max())
                 print(
                     'max residual: ', 
@@ -246,27 +260,27 @@ def synthesis_general(
     t_start = time.time()
     print(
         'max residual: ', 
-        np.max((estimator_function(image_model.param.reshape(N_image,M,N)) - estimator_target).abs().detach().cpu().numpy()),
+        np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
         ', mean residual: ', 
-        np.mean((estimator_function(image_model.param.reshape(N_image,M,N)) - estimator_target).abs().detach().cpu().numpy()),
+        np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
     )
     if optim_algorithm =='LBFGS':
         i=0
         optimizer.step(closure)
     else:
         for i in range(steps):
-            print('step: ', i)
+            # print('step: ', i)
             optimizer.step(closure)
     print(
         'max residual: ', 
-        np.max((estimator_function(image_model.param.reshape(N_image,M,N)) - estimator_target).abs().detach().cpu().numpy()),
+        np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
         ', mean residual: ', 
-        np.mean((estimator_function(image_model.param.reshape(N_image,M,N)) - estimator_target).abs().detach().cpu().numpy()),
+        np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
     )
     t_end = time.time()
     print('time used: ', t_end - t_start, 's')
 
-    return image_model.param.reshape(N_image,M,N).cpu().detach().numpy()
+    return image_model.image.cpu().detach().numpy()
 
 # image pre-processing
 def binning2x2(image):
