@@ -2,10 +2,16 @@ import os
 dirpath = os.path.dirname(__file__)
 
 import numpy as np
+from pathlib import Path
 import time
 import torch
+import matplotlib.pyplot as plt
 
-from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
+from utils import to_numpy
+from scattering.ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, \
+    get_power_spectrum, reduced_ST
+from angle_transforms import FourierAngle
+from scale_transforms import FourierScale
 
 
 # synthesis
@@ -715,4 +721,77 @@ def modify_angular(s_cov_set, factor, C01=False, C11=False, keep_para=False):
 #     err_C11 = ((target_C11 - model_C11).abs()**2).mean()**0.5
     
 #     return err_P00, err_S1, err_C01, err_P11, err_C11
+
+
+def scale_annotation_a_b(idx_info):
+    """
+    Convert idx_info j1, j1p, j2, l1, l1p, l2
+    into idx_info j1, a, b, l1, l1p, l2.
+
+    :idx_info: K x 6 array
+    """
+    cov_type, j1, j1p, j2, l1, l1p, l2 = idx_info.T
+    admissible_types = {
+        0: 'mean',
+        1: 'P00',
+        2: 'S1',
+        3: 'C01re',
+        4: 'C01im',
+        5: 'C11re',
+        6: 'C11im'
+    }
+    cov_type = np.array([admissible_types[c_type] for c_type in cov_type])
+
+    # create idx_info j1, j1p, a, b, l1, l1p, l2
+    where_c01_c11 = np.isin(cov_type, ['C01re', 'C01im', 'C11re', 'C11im'])
+
+    j1_new = j1.copy()
+    j1p_new = j1p.copy()
+
+    j1_new[where_c01_c11] = j1p[where_c01_c11]
+    j1p_new[where_c01_c11] = j1[where_c01_c11]
+
+    a = (j1_new - j1p_new) * (j1p_new >= 0) - (j1p_new == -1)
+    b = (j1_new - j2) * (j2 >= 0) + (j2 == -1)
+
+    idx_info_a_b = np.array([cov_type, j1_new, a, b, l1, l1p, l2], dtype=object).T
+
+    # idx_info_a_b = np.stack([cov_type, j1_new, a, b, l1, l1p, l2]).T
+
+    return idx_info_a_b
+
+
+if __name__ == "__main__":
+
+    fourier_angle = True
+    fourier_scale = True
+
+    angle_operator = FourierAngle()
+    scale_operator = FourierScale()
+
+    def moments(s_cov, params):
+        idx_info = to_numpy(s_cov['index_for_synthesis_iso']).T
+        idx_info = scale_annotation_a_b(idx_info)
+        s_cov = s_cov['for_synthesis_iso']
+
+        if fourier_angle:
+            s_cov, idx_info = angle_operator(s_cov, idx_info)
+        if fourier_scale:
+            s_cov, idx_info = scale_operator(s_cov, idx_info)
+
+        return s_cov
+
+    im1_path = Path(dirpath) / 'example_fields.npy'
+    im = np.load(str(im1_path))
+
+    image_syn = synthesis('s_cov_func', im[:1, :, :], s_cov_func=moments, J=7, steps=100, seed=0)
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 7), squeeze=False)
+    axes[0, 0].imshow(im[0, :, :], cmap='viridis')
+    axes[0, 0].grid(None)
+    axes[0, 1].imshow(image_syn[0, :, :], cmap='viridis')
+    axes[0, 1].grid(None)
+    plt.show()
+
+    print(0)
 
