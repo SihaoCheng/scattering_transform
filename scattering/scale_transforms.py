@@ -61,7 +61,7 @@ def init_cosine_projector(s_cov, idx_info):
         if idx.sum() != nb_om:
             print("ERROR")
 
-        idx_info_out_l.append([(c_type, l1, l1p, l2, om, a, b) for om in range(nb_om)])
+        idx_info_out_l.append([(c_type, om, a, b, l1, l1p, l2) for om in range(nb_om)])
         proj_l.append(proj)
 
     idx_info_out_l = list(itertools.chain.from_iterable(idx_info_out_l))
