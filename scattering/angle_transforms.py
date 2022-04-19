@@ -22,21 +22,24 @@ class FourierAngle:
         L = l3.max() + 1  # number of angles # TODO. Hack, should better infer the value of L
 
         # computes Fourier along angles
-        C01re = s_cov[:, cov_type == 'C01re'].reshape(-1, L)
-        C01im = s_cov[:, cov_type == 'C01im'].reshape(-1, L)
-        C11re = s_cov[:, cov_type == 'C11re'].reshape(-1, L, L)
-        C11im = s_cov[:, cov_type == 'C11im'].reshape(-1, L, L)
+        C01re = s_cov[:, cov_type == 'C01re'].reshape(len(s_cov), -1, L)
+        C01im = s_cov[:, cov_type == 'C01im'].reshape(len(s_cov), -1, L)
+        C11re = s_cov[:, cov_type == 'C11re'].reshape(len(s_cov), -1, L, L)
+        C11im = s_cov[:, cov_type == 'C11im'].reshape(len(s_cov), -1, L, L)
+        
+        C01_f = torch.fft.fft (C01re + 1j * C01im, norm='ortho')
+        C11_f = torch.fft.fft2(C11re + 1j * C11im, norm='ortho', dim=(-2,-1))
 
         # idx_info for mean, P00, S1
-        cov_no_fourier = s_cov[0, np.isin(cov_type, ['mean', 'P00', 'S1'])]
+        cov_no_fourier = s_cov[:, np.isin(cov_type, ['mean', 'P00', 'S1'])]
         idx_info_no_fourier = idx_info[np.isin(cov_type, ['mean', 'P00', 'S1']), :]
 
         # idx_info for C01
-        C01_f_flattened = torch.cat([C01_f.real.reshape(-1), C01_f.imag.reshape(-1)])
+        C01_f_flattened = torch.cat([C01_f.real.reshape(len(s_cov), -1), C01_f.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_C01 = idx_info[np.isin(cov_type, ['C01re', 'C01im']), :]
 
         # idx_info for C11
-        C11_f_flattened = torch.cat([C11_f.real.reshape(-1), C11_f.imag.reshape(-1)])
+        C11_f_flattened = torch.cat([C11_f.real.reshape(len(s_cov), -1), C11_f.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_C11 = idx_info[np.isin(cov_type, ['C11re', 'C11im']), :]
 
         idx_info_f = np.concatenate([idx_info_no_fourier, idx_info_C01, idx_info_C11])
