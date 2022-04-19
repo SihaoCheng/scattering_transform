@@ -7,7 +7,7 @@ import time
 import torch
 import matplotlib.pyplot as plt
 
-from utils import to_numpy
+from scattering.utils import to_numpy
 from scattering.ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, \
     get_power_spectrum, reduced_ST
 from angle_transforms import FourierAngle
