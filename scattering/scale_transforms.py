@@ -85,6 +85,6 @@ class FourierScale:
 
         # compute cosine transform along j1
 #         s_cov_f = self.P_cos @ s_cov
-        s_cov_f = (self.P_cos[None,...] @ s_cov[...,None])[...,None]
+        s_cov_f = (self.P_cos[None,...] @ s_cov[...,None])[...,0]
 
         return s_cov_f, self.idx_info_out
