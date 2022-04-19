@@ -5,8 +5,6 @@ Transforms performed on angles l1, l1p, l2
 import numpy as np
 import torch
 
-from utils import to_numpy
-
 
 # def fourier(N, k) -> np.ndarray: # TODO. Define an orthonormal Fourier basis.
 
