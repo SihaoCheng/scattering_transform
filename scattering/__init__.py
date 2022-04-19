@@ -490,6 +490,22 @@ def modify_angular(s_cov_set, factor, C01=False, C11=False, keep_para=False):
             ).reshape(N_img,-1) * factor
     return s_cov
 
+# show three panel plots
+def show(image_target, image_syn, hist_range=(-2, 2), hist_bins=50):
+    for i in range(len(image_target)):
+        plt.figure(figsize=(9,3), dpi=200)
+        plt.subplot(131) 
+        plt.imshow(image_target[i], vmin=hist_range[0], vmax=hist_range[1])
+        plt.xticks([]); plt.yticks([]); plt.title('target field')
+        plt.subplot(132)
+        plt.imshow(image_syn[i], vmin=hist_range[0], vmax=hist_range[1])
+        plt.xticks([]); plt.yticks([]); plt.title('synthesized field')
+        plt.subplot(133); 
+        plt.hist(image_target[i].flatten(), hist_bins, hist_range, histtype='step', label='target')
+        plt.hist(   image_syn[i].flatten(), hist_bins, hist_range, histtype='step', label='synthesized')
+        plt.yscale('log'); plt.legend(loc='lower center'); plt.title('histogram')
+        plt.show()
+
 # old code for synthesis
 # class model_image(torch.nn.Module):
 #     def __init__(
