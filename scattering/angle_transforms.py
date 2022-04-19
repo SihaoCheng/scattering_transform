@@ -22,10 +22,10 @@ class FourierAngle:
         L = l3.max() + 1  # number of angles # TODO. Hack, should better infer the value of L
 
         # computes Fourier along angles
-        C01re = s_cov[:, cov_type == 'C01re'].reshape(len(s_cov), -1, L)
-        C01im = s_cov[:, cov_type == 'C01im'].reshape(len(s_cov), -1, L)
-        C11re = s_cov[:, cov_type == 'C11re'].reshape(len(s_cov), -1, L, L)
-        C11im = s_cov[:, cov_type == 'C11im'].reshape(len(s_cov), -1, L, L)
+        C01re = s_cov[:, cov_type == 'C01re'].reshape(-1, L)
+        C01im = s_cov[:, cov_type == 'C01im'].reshape(-1, L)
+        C11re = s_cov[:, cov_type == 'C11re'].reshape(-1, L, L)
+        C11im = s_cov[:, cov_type == 'C11im'].reshape(-1, L, L)
 
         # idx_info for mean, P00, S1
         cov_no_fourier = s_cov[0, np.isin(cov_type, ['mean', 'P00', 'S1'])]
