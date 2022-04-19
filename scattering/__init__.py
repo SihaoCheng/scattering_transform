@@ -5,7 +5,11 @@ import numpy as np
 import time
 import torch
 
+<<<<<<< HEAD
 from scattering.ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
+=======
+from .ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, get_power_spectrum, reduced_ST
+>>>>>>> parent of a43e2ee... - added Fourier transform on angles l1, l1p, l2 based on Sihao and Erwan's code
 
 
 # synthesis
