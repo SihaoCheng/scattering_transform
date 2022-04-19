@@ -43,6 +43,6 @@ class FourierAngle:
         idx_info_C11 = idx_info[np.isin(cov_type, ['C11re', 'C11im']), :]
 
         idx_info_f = np.concatenate([idx_info_no_fourier, idx_info_C01, idx_info_C11])
-        s_covs_f = torch.cat([cov_no_fourier, C01_f_flattened, C11_f_flattened])
+        s_covs_f = torch.cat([cov_no_fourier, C01_f_flattened, C11_f_flattened], dim=-1)
 
         return s_covs_f, idx_info_f
