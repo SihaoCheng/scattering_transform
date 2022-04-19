@@ -393,59 +393,12 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
     data = np.fft.fftshift(np.real(gaussian_field))
     return data
 
-# transforming scattering representation s_cov['for_synthesis_iso']
-# angular fft of C01 and C11 coef
-def fft_coef(coef, index_type):
-    C01_f = torch.fft.fft(
-        coef[:,index_type==3].reshape(len(coef),-1,L)+
-        coef[:,index_type==4].reshape(len(coef),-1,L) * 1j, norm='ortho')
-    C11_f =torch.fft.fft2(
-        coef[:,index_type==5].reshape(len(coef),-1,L,L)+
-        coef[:,index_type==6].reshape(len(coef),-1,L,L) * 1j, norm='ortho')
-    return C01_f, C11_f
-
-def s_cov_WN(st_calc, N_realization=500, coef_name='for_synthesis_iso'):
-    '''
-    compute the mean and std of C01_f and C11_f for gaussian white noise.
-    '''
-    image_gaussian = np.random.normal(0,1,(50,st_calc.M,st_calc.N))
-    s_cov = st_calc.scattering_cov(image_gaussian, if_large_batch=True)
-    coef = s_cov[coef_name]
-
-    for i in range(N_realization//50-1):
-        image_gaussian = np.random.normal(0,1,(50,st_calc.M,st_calc.N))
-        s_cov  = st_calc.scattering_cov(image_gaussian, if_large_batch=True)
-        coef = torch.cat((coef, s_cov[coef_name]), dim=0)
-    C01_f, C11_f = fft_coef(coef, index_type)
-    return C01_f.mean(0), C01_f.std(0), C11_f.mean(0), C11_f.std(0)
-
-# select s_cov['for_synthesis_iso'] with mask
-def s_cov_iso_threshold(s_cov, param_list):
-    '''
-    this can be any function that eats the s_cov from scattering.s_cov()
-    and some other parameters, and then outputs a flattened torch tensor.
-    The output is flattened instead of with size of [N_image, -1] because
-    the mask for each image can be different.
-    '''
-    L = param_list[0]
-    coef = s_cov['for_synthesis_iso']
-    index_type, j1, j2, j3, l1, l2, l3 = s_cov['index_for_synthesis_iso']
-    
-    # Fourier transform for l2-l1 and l3-l1
-    C01_f, C11_f = fft_coef(coef, index_type)
-    return torch.cat((
-            coef[:,index_type<3].reshape(-1), # mean, P, S1
-            (C01_f[param_list[1]].reshape(-1)).real,
-            (C01_f[param_list[1]].reshape(-1)).imag,
-            (C11_f[param_list[2]].reshape(-1)).real,
-            (C11_f[param_list[2]].reshape(-1)).imag,
-        ), dim=0)
-
+# transforming scattering representation
 def modify_angular(s_cov_set, factor, C01=False, C11=False, keep_para=False):
     '''
     a function to change the angular oscillation of C01 and/or C11 by a factor
     '''
-    index_type, j1, j2, j3, l1, l2, l3 = s_cov_set['index_for_synthesis_iso']
+    index_type, j1, l1, j2, l2, j3, l3 = s_cov_set['index_for_synthesis_iso']
     L = s_cov_set['P00'].shape[-1]
     s_cov = s_cov_set['for_synthesis_iso']*1.
     N_img = len(s_cov)
