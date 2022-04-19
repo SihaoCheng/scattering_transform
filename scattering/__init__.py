@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from scattering.utils import to_numpy
 from scattering.ST import FiltersSet, Scattering2d, Bispectrum_Calculator, AlphaScattering2d_cov, \
     get_power_spectrum, reduced_ST
-from angle_transforms import FourierAngle
-from scale_transforms import FourierScale
+from scattering.angle_transforms import FourierAngle
+from scattering.scale_transforms import FourierScale
 
 
 # synthesis
