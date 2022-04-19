@@ -411,7 +411,7 @@ def s_cov_WN(st_calc, N_realization=500, coef_name='for_synthesis_iso'):
     image_gaussian = np.random.normal(0,1,(50,st_calc.M,st_calc.N))
     s_cov = st_calc.scattering_cov(image_gaussian, if_large_batch=True)
     coef = s_cov[coef_name]
-    index_type, j1, j2, j3, l1, l2, l3 = s_cov[coef_name]
+    index_type, j1, j2, j3, l1, l2, l3 = s_cov['index_'+coef_name]
 
     for i in range(N_realization//50-1):
         image_gaussian = np.random.normal(0,1,(50,st_calc.M,st_calc.N))
