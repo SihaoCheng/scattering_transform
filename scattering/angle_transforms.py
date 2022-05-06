@@ -16,19 +16,26 @@ class FourierAngle:
     def __init__(self):
         self.F = None
 
-    def __call__(self, s_cov, idx_info):
+    def __call__(self, s_cov, idx_info, if_isotropic=True):
         cov_type, j1, a, b, l1, l2, l3 = idx_info.T
 
         L = l3.max() + 1  # number of angles # TODO. Hack, should better infer the value of L
 
         # computes Fourier along angles
-        C01re = s_cov[:, cov_type == 'C01re'].reshape(len(s_cov), -1, L)
-        C01im = s_cov[:, cov_type == 'C01im'].reshape(len(s_cov), -1, L)
-        C11re = s_cov[:, cov_type == 'C11re'].reshape(len(s_cov), -1, L, L)
-        C11im = s_cov[:, cov_type == 'C11im'].reshape(len(s_cov), -1, L, L)
-        
-        C01_f = torch.fft.fft (C01re + 1j * C01im, norm='ortho')
-        C11_f = torch.fft.fft2(C11re + 1j * C11im, norm='ortho', dim=(-2,-1))
+        if if_isotropic:
+            C01re = s_cov[:, cov_type == 'C01re'].reshape(len(s_cov), -1, L)
+            C01im = s_cov[:, cov_type == 'C01im'].reshape(len(s_cov), -1, L)
+            C11re = s_cov[:, cov_type == 'C11re'].reshape(len(s_cov), -1, L, L)
+            C11im = s_cov[:, cov_type == 'C11im'].reshape(len(s_cov), -1, L, L)
+            C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=-1)
+            C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-2,-1))
+        else:
+            C01re = s_cov[:, cov_type == 'C01re'].reshape(len(s_cov), -1, L, L)
+            C01im = s_cov[:, cov_type == 'C01im'].reshape(len(s_cov), -1, L, L)
+            C11re = s_cov[:, cov_type == 'C11re'].reshape(len(s_cov), -1, L, L, L)
+            C11im = s_cov[:, cov_type == 'C11im'].reshape(len(s_cov), -1, L, L, L)
+            C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2,-1))
+            C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3,-2,-1))
 
         # idx_info for mean, P00, S1
         cov_no_fourier = s_cov[:, np.isin(cov_type, ['mean', 'P00', 'S1'])]
