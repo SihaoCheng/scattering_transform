@@ -242,7 +242,7 @@ def synthesis_general(
         optimizer = torch.optim.LBFGS(image_model.parameters(), lr=learning_rate, 
             max_iter=steps, max_eval=None, 
             tolerance_grad=1e-19, tolerance_change=1e-19, 
-            history_size=steps//2, line_search_fn=None
+            history_size=min(steps//2, 150), line_search_fn=None
         )
     
     def closure():
