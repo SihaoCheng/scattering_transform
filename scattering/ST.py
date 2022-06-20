@@ -10,7 +10,7 @@ class FiltersSet(object):
         self.L = L
     
     # Morlet Wavelets
-    def generate_morlet(self, if_save=False, save_dir=None, precision='single'):
+    def generate_morlet(self, if_save=False, save_dir=None, precision='single', l_oversampling=1):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
         if precision=='single':
@@ -23,7 +23,7 @@ class FiltersSet(object):
                     sigma=0.8 * 2**j, 
                     theta=(int(self.L-self.L/2-1)-theta) * np.pi / self.L, 
                     xi=3.0 / 4.0 * np.pi /2**j, 
-                    slant=4.0/self.L,
+                    slant=4.0 / self.L * l_oversampling,
                 )
                 wavelet_Fourier = np.fft.fft2(wavelet)
                 wavelet_Fourier[0,0] = 0
