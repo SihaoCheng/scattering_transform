@@ -29,6 +29,7 @@ def synthesis(
     s_cov_func=None,
     s_cov_func_params=[],
     Fourier=False,
+    target_full=None,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
@@ -75,7 +76,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if mode=='estimator':
             if image_ref is None:
                 st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device,)
-                st_calc.add_synthesis_P00P11(target, 'iso' in estimator_name, C11_criteria)
+                st_calc.add_synthesis_P00P11(target if target_full is None else target_full, 'iso' in estimator_name, C11_criteria)
             else:
                 st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device, ref=image_ref)
         if estimator_name=='s_mean_iso':
