@@ -405,7 +405,8 @@ class Scattering2d(object):
     def __init__(
         self, M, N, J, L=4, device='gpu', 
         wavelets='morlet', filters_set=None, weight=None, 
-        precision='single', ref=None, ref_a=None, ref_b=None
+        precision='single', ref=None, ref_a=None, ref_b=None,
+        l_oversampling=1,
     ):
         '''
         M: int (positive)
@@ -447,7 +448,7 @@ class Scattering2d(object):
             if wavelets=='morlet':
                 filters_set = FiltersSet(
                     M=M, N=N, J=J, L=L,
-                ).generate_morlet(precision=precision)
+                ).generate_morlet(precision=precision, l_oversampling=l_oversampling)
             if wavelets=='BS':
                 filters_set = FiltersSet(
                     M=M, N=N, J=J, L=L,
