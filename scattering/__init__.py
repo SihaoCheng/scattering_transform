@@ -76,7 +76,11 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if mode=='estimator':
             if image_ref is None:
                 st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device,)
-                st_calc.add_synthesis_P00P11(target if target_full is None else target_full, 'iso' in estimator_name, C11_criteria)
+                if target_full is None:
+                    temp = target
+                else:
+                    temp = target_full
+                st_calc.add_synthesis_P00P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
                 st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device, ref=image_ref)
         if estimator_name=='s_mean_iso':
