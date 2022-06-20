@@ -89,7 +89,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if estimator_name=='s_mean':
             def func(image):
                 return st_calc.scattering_coef(image, flatten=True)['for_synthesis']
-        if estimator_name=='s_cov_func':
+        if 's_cov_func' in estimator_name:
             def func(image):
                 s_cov_set = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, 
