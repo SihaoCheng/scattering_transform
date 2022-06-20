@@ -538,18 +538,18 @@ class Scattering2d(object):
             j1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), indexing='ij')
             select_j12_iso = (j1 <= j2) * eval(C11_criteria)
             self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J].reshape((-1,J,1)))
-            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,L,J,L)
+            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,J,L,L)
             for i in range(select_j12_iso.sum()):
-                self.ref_scattering_cov['P11'][:,j1[select_j12_iso][i],:,j2[select_j12_iso][i],l2[select_j12_iso][i]] = \
+                self.ref_scattering_cov['P11'][:,j1[select_j12_iso][i],j2[select_j12_iso][i],:,l2[select_j12_iso][i]] = \
                     torch.exp(s_cov[:,1+2*J+i,None])
         else:
-            j1, l1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(L), torch.arange(J), torch.arange(L), indexing='ij')
+            j1, l1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), torch.arange(L), indexing='ij')
             select_j12 = (j1 <= j2) * eval(C11_criteria)
             self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J*L].reshape((-1,J,L)))
-            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,L,J,L)
+            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,J,L,L)
             for i in range(select_j12.sum()):
                 self.ref_scattering_cov['P11'][
-                    :,j1[select_j12][i],l1[select_j12][i],j2[select_j12][i],l2[select_j12][i]
+                    :,j1[select_j12][i],j2[select_j12][i],l1[select_j12][i],l2[select_j12][i]
                 ] = torch.exp(s_cov[:,1+2*J*L+i])
         if self.device=='gpu':
             self.ref_scattering_cov['P00'] = self.ref_scattering_cov['P00'].cuda()
