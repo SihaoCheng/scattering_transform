@@ -1106,7 +1106,6 @@ class Scattering2d(object):
                         norm_factor_C01 = (P00[:,None,j3,:] * P11_temp)**0.5
                     if normalization=='P00':
                         norm_factor_C01 = (P00[:,None,j3,:] * P00[:,j2,:,None])**0.5
-                print(norm_factor_C01.shape)
                 C01[:,j2,j3,:,:] = (
                     data_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
