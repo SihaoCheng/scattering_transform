@@ -17,7 +17,7 @@ from scattering.scale_transforms import FourierScale
 # synthesis
 def synthesis(
     estimator_name, target, image_init=None, image_ref=None, image_b=None,
-    J=None, L=4, M=None, N=None,
+    J=None, L=4, M=None, N=None, l_oversampling=1,
     mode='image', optim_algorithm='LBFGS', steps=300, learning_rate=0.2,
     device='gpu', wavelets='morlet', seed=None,
     bispectrum_bins=None, bispectrum_bin_type='log',
@@ -69,20 +69,23 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                     print('should provide a valid image_b.')
                 else:
                     st_calc = Scattering2d(
-                        M, N, J, L, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b
-                    )
+                        M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, 
+                        ref_a=target, ref_b=image_b)
             else:
-                st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device, ref=target)
+                st_calc = Scattering2d(
+                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=target, )
         if mode=='estimator':
             if image_ref is None:
-                st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device,)
+                st_calc = Scattering2d(
+                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, )
                 if target_full is None:
                     temp = target
                 else:
                     temp = target_full
                 st_calc.add_synthesis_P00P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
-                st_calc = Scattering2d(M, N, J, L, wavelets=wavelets, device=device, ref=image_ref)
+                st_calc = Scattering2d(
+                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
         if estimator_name=='s_mean_iso':
             def func(image):
                 return st_calc.scattering_coef(image, flatten=True)['for_synthesis_iso']
