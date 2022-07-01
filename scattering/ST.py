@@ -774,8 +774,13 @@ class Scattering2d(object):
                     else:
                         weight_temp = self.weight_downsample_list[j1][None,None,:,:]
                     # S1 = I1 averaged over (x,y)
-                    S1 [:,j1] = (I1**pseudo_coef * weight_temp).mean((-2,-1)) * M1*N1/M/N
-                    P00[:,j1] = (I1**2 * weight_temp).mean((-2,-1)) * (M1*N1/M/N)**2
+                    if remove_edge:
+                        edge_mask = self.cut_high_k_off(self.edge_masks[j1], dx1, dy1)
+                        edge_mask = (edge_mask / edge_mask.mean((-2,-1)))[None,None,:,:]
+                    else:
+                        edge_mask = 1
+                    S1 [:,j1] = (I1**pseudo_coef * weight_temp * edge_mask).mean((-2,-1)) * M1*N1/M/N
+                    P00[:,j1] = (I1**2 * weight_temp * edge_mask).mean((-2,-1)) * (M1*N1/M/N)**2
                     # 2nd order
                     I1_f = torch.fft.fftn(I1, dim=(-2,-1))
                     del I1
@@ -798,14 +803,19 @@ class Scattering2d(object):
                             else:
                                 weight_temp = self.weight_downsample_list[j2][None,None,None,:,:]
                             # S2 = I2 averaged over (x,y)
+                            if remove_edge:
+                                edge_mask = self.cut_high_k_off(self.edge_masks[j2], dx2, dy2)
+                                edge_mask = (edge_mask / edge_mask.mean((-2,-1)))[None,None,None,:,:]
+                            else:
+                                edge_mask = 1
                             S2[:,j1,j2,:,:] = (
-                                I2**pseudo_coef * weight_temp
+                                I2**pseudo_coef * weight_temp * edge_mask
                             ).mean((-2,-1)) * M2*N2/M/N
                             P11[:,j1,j2,:,:] = (
-                                I2**2 * weight_temp
+                                I2**2 * weight_temp * edge_mask
                             ).mean((-2,-1)) * (M2*N2/M/N)**2
                             E_residual[:,j1,j2,:,:] = (
-                                (I2 - I2.mean((-2,-1))[:,:,:,None,None])**2 * weight_temp
+                                (I2 - I2.mean((-2,-1))[:,:,:,None,None])**2 * weight_temp * edge_mask
                             ).mean((-2,-1)) * (M2*N2/M/N)**2
             elif if_large_batch:
                 # run for loop over l1 and l2, instead of calculating them all together
@@ -827,8 +837,13 @@ class Scattering2d(object):
                             weight_temp = 1
                         else:
                             weight_temp = self.weight_downsample_list[j1][None,:,:]
-                        S1 [:,j1,l1] = (I1**pseudo_coef * weight_temp).mean((-2,-1)) * (M1*N1/M/N)
-                        P00[:,j1,l1] = (I1**2 * weight_temp).mean((-2,-1)) * (M1*N1/M/N)**2
+                        if remove_edge:
+                            edge_mask = self.cut_high_k_off(self.edge_masks[j1], dx1, dy1)
+                            edge_mask = (edge_mask / edge_mask.mean((-2,-1)))[None,:,:]
+                        else:
+                            edge_mask = 1
+                        S1 [:,j1,l1] = (I1**pseudo_coef * weight_temp * edge_mask).mean((-2,-1)) * (M1*N1/M/N)
+                        P00[:,j1,l1] = (I1**2 * weight_temp * edge_mask).mean((-2,-1)) * (M1*N1/M/N)**2
                         # 2nd order
                         I1_f = torch.fft.fftn(I1, dim=(-2,-1))
                         del I1
@@ -845,14 +860,19 @@ class Scattering2d(object):
                                         weight_temp = 1
                                     else:
                                         weight_temp = self.weight_downsample_list[j2][None,:,:]
+                                    if remove_edge:
+                                        edge_mask = self.cut_high_k_off(self.edge_masks[j2], dx2, dy2)
+                                        edge_mask = (edge_mask / edge_mask.mean((-2,-1)))[None,:,:]
+                                    else:
+                                        edge_mask = 1
                                     S2[:,j1,j2,l1,l2] = (
-                                        I2**pseudo_coef * weight_temp
+                                        I2**pseudo_coef * weight_temp * edge_mask
                                     ).mean((-2,-1)) * M2*N2/M/N
                                     P11[:,j1,j2,l1,l2] = (
-                                        I2**2 * weight_temp
+                                        I2**2 * weight_temp * edge_mask
                                     ).mean((-2,-1)) * (M2*N2/M/N)**2
                                     E_residual[:,j1,j2,l1,l2] = (
-                                        (I2 - I2.mean((-2,-1))[:,None,None])**2 * weight_temp
+                                        (I2 - I2.mean((-2,-1))[:,None,None])**2 * weight_temp * edge_mask
                                     ).mean((-2,-1)) * (M2*N2/M/N)**2
         elif algorithm == 'classic':
             # I do not write the memory-friendly version here, because this "classic"
