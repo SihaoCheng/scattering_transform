@@ -10,7 +10,7 @@ class FiltersSet(object):
         self.L = L
     
     # Morlet Wavelets
-    def generate_morlet(self, if_save=False, save_dir=None, precision='single'):
+    def generate_morlet(self, if_save=False, save_dir=None, precision='single', l_oversampling=1):
         if precision=='double':
             psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
         if precision=='single':
@@ -23,7 +23,7 @@ class FiltersSet(object):
                     sigma=0.8 * 2**j, 
                     theta=(int(self.L-self.L/2-1)-theta) * np.pi / self.L, 
                     xi=3.0 / 4.0 * np.pi /2**j, 
-                    slant=4.0/self.L,
+                    slant=4.0 / self.L * l_oversampling,
                 )
                 wavelet_Fourier = np.fft.fft2(wavelet)
                 wavelet_Fourier[0,0] = 0
@@ -405,7 +405,8 @@ class Scattering2d(object):
     def __init__(
         self, M, N, J, L=4, device='gpu', 
         wavelets='morlet', filters_set=None, weight=None, 
-        precision='single', ref=None, ref_a=None, ref_b=None
+        precision='single', ref=None, ref_a=None, ref_b=None,
+        l_oversampling=1,
     ):
         '''
         M: int (positive)
@@ -447,7 +448,7 @@ class Scattering2d(object):
             if wavelets=='morlet':
                 filters_set = FiltersSet(
                     M=M, N=N, J=J, L=L,
-                ).generate_morlet(precision=precision)
+                ).generate_morlet(precision=precision, l_oversampling=l_oversampling)
             if wavelets=='BS':
                 filters_set = FiltersSet(
                     M=M, N=N, J=J, L=L,
@@ -537,18 +538,18 @@ class Scattering2d(object):
             j1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), indexing='ij')
             select_j12_iso = (j1 <= j2) * eval(C11_criteria)
             self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J].reshape((-1,J,1)))
-            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,L,J,L)
+            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,J,L,L)
             for i in range(select_j12_iso.sum()):
-                self.ref_scattering_cov['P11'][:,j1[select_j12_iso][i],:,j2[select_j12_iso][i],l2[select_j12_iso][i]] = \
+                self.ref_scattering_cov['P11'][:,j1[select_j12_iso][i],j2[select_j12_iso][i],:,l2[select_j12_iso][i]] = \
                     torch.exp(s_cov[:,1+2*J+i,None])
         else:
-            j1, l1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(L), torch.arange(J), torch.arange(L), indexing='ij')
+            j1, j2, l1, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), torch.arange(L), indexing='ij')
             select_j12 = (j1 <= j2) * eval(C11_criteria)
             self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J*L].reshape((-1,J,L)))
-            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,L,J,L)
+            self.ref_scattering_cov['P11'] = torch.zeros(s_cov.shape[0], J,J,L,L)
             for i in range(select_j12.sum()):
                 self.ref_scattering_cov['P11'][
-                    :,j1[select_j12][i],l1[select_j12][i],j2[select_j12][i],l2[select_j12][i]
+                    :,j1[select_j12][i],j2[select_j12][i],l1[select_j12][i],l2[select_j12][i]
                 ] = torch.exp(s_cov[:,1+2*J*L+i])
         if self.device=='gpu':
             self.ref_scattering_cov['P00'] = self.ref_scattering_cov['P00'].cuda()
