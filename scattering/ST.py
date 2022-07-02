@@ -999,15 +999,15 @@ class Scattering2d(object):
         'P11_iso'   : torch tensor with size [N_image, J, J, L] (# image, j1, j2, l2-l1)
             'P11' averaged over l1 while keeping l2-l1 constant.
         'for_synthesis' : torch tensor with size [N_image, -1] (# image, index of coef.)
-            flattened coefficients, containing mean/var, log(P00), log(S1), C01, and C11
+            flattened coefficients, containing mean/std, log(P00), log(S1), C01, and C11
         'for_synthesis_iso' : torch tensor with size [N_image, -1] (# image, index of coef.)
-            flattened coefficients, containing mean/var, log(P00_iso), log(S1_iso), C01_iso, and C11_iso
+            flattened coefficients, containing mean/std, log(P00_iso), log(S1_iso), C01_iso, and C11_iso
         'index_for_synthesis' : torch tensor with size [7, -1] (index name, index of coef.)
             the index of the flattened tensor "for_synthesis", can be used to select subset of coef.
             the rows have the following meanings:
                 index_type, j1, j2, j3, l1, l2, l3 = index_for_synthesis[:]
                 where index_type is encoded by integers in the following way:
-                    0: mean/var     1: log(P00)     2: log(S1)      
+                    0: mean/std     1: log(P00)     2: log(S1)      
                     3: C01_real     4: C01_imag     5: C11_real     6: C011_imag
                     (7: P11)
                 j range from 0 to J, l range from 0 to L.
@@ -1166,7 +1166,7 @@ class Scattering2d(object):
         index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
         
         for_synthesis = torch.cat((
-            (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
+            (data.mean((-2,-1))/data.std((-2,-1)))[:,None],
             P00.reshape((N_image, -1)).log(), 
             S1.reshape((N_image, -1)).log(),
             C01[:,select_and_index['select_2']].real, 
@@ -1175,7 +1175,7 @@ class Scattering2d(object):
             C11[:,select_and_index['select_3']].imag
         ), dim=-1)
         for_synthesis_iso = torch.cat((
-            (data.mean((-2,-1))/data.var((-2,-1)))[:,None],
+            (data.mean((-2,-1))/data.std((-2,-1)))[:,None],
             P00_iso.log(), 
             S1_iso.log(),
             C01_iso[:,select_and_index['select_2_iso']].real, 
@@ -1447,8 +1447,8 @@ class Scattering2d(object):
         index_for_synthesis_iso = select_and_index['index_for_synthesis_iso']
         
         for_synthesis = torch.cat((
-            (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
-            (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
+            (data_a.mean((-2,-1))/data_a.std((-2,-1)))[:,None],
+            (data_b.mean((-2,-1))/data_b.std((-2,-1)))[:,None],
             P00_a.reshape((N_image, -1)).log(), 
             P00_b.reshape((N_image, -1)).log(), 
             Corr00.reshape((N_image, -1)).real, 
@@ -1459,8 +1459,8 @@ class Scattering2d(object):
             Corr11[:,:,select_and_index['select_3']].reshape((N_image, -1)).imag
         ), dim=-1)
         for_synthesis_iso = torch.cat((
-            (data_a.mean((-2,-1))/data_a.var((-2,-1)))[:,None],
-            (data_b.mean((-2,-1))/data_b.var((-2,-1)))[:,None],
+            (data_a.mean((-2,-1))/data_a.std((-2,-1)))[:,None],
+            (data_b.mean((-2,-1))/data_b.std((-2,-1)))[:,None],
             P00_a_iso.log(), 
             P00_b_iso.log(), 
             Corr00_iso.real, 
