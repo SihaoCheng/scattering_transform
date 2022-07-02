@@ -1596,7 +1596,7 @@ class Bispectrum_Calculator(object):
                         # *1e8 # / self.B_ref_array[k1, k2, k3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
-def get_power_spectrum(target, bins, device='gpu'):
+def get_power_spectrum(target, bins, bin_type='log', device='gpu'):
     '''
     get the power spectrum of a given image
     '''
@@ -1605,15 +1605,18 @@ def get_power_spectrum(target, bins, device='gpu'):
     modulus = torch.fft.fftn(target, dim=(-2,-1)).abs()
     
     modulus = torch.cat(
-        ( torch.cat(( modulus[M//2:, N//2:], modulus[:M//2, N//2:] ), 0),
-          torch.cat(( modulus[M//2:, :N//2], modulus[:M//2, :N//2] ), 0)
-        ),1)
+        ( torch.cat(( modulus[..., M//2:, N//2:], modulus[..., :M//2, N//2:] ), -2),
+          torch.cat(( modulus[..., M//2:, :N//2], modulus[..., :M//2, :N//2] ), -2)
+        ),-1)
     X = torch.arange(0,M)
     Y = torch.arange(0,N)
     Ygrid, Xgrid = torch.meshgrid(Y,X, indexing='ij')
     R = ((Xgrid - M/2)**2 + (Ygrid - N/2)**2)**0.5
 
-    R_range = torch.logspace(0.0, np.log10(1.4*M/2), bins)
+    if bin_type=='log': 
+        R_range = torch.logspace(0.0, np.log10(1.4*M/2), bins)
+    else:
+        R_range = torch.linspace(1, 1.4*M/2, bins)
     R_range = torch.cat((torch.tensor([0]), R_range))
     power_spectrum = torch.zeros(len(R_range)-1, dtype=target.dtype)
     if device=='gpu':
