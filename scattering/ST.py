@@ -1596,13 +1596,13 @@ class Bispectrum_Calculator(object):
                         # *1e8 # / self.B_ref_array[k1, k2, k3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
-def get_power_spectrum(target, bins, bin_type='log', device='gpu'):
+def get_power_spectrum(image, bins, bin_type='log', device='gpu'):
     '''
     get the power spectrum of a given image
     '''
     if not torch.cuda.is_available(): device='cpu'
-    M, N = target.shape[-2:]
-    modulus = torch.fft.fftn(target, dim=(-2,-1)).abs()
+    M, N = image.shape[-2:]
+    modulus = torch.fft.fftn(image, dim=(-2,-1)).abs()
     
     modulus = torch.cat(
         ( torch.cat(( modulus[..., M//2:, N//2:], modulus[..., :M//2, N//2:] ), -2),
@@ -1618,7 +1618,7 @@ def get_power_spectrum(target, bins, bin_type='log', device='gpu'):
     else:
         R_range = torch.linspace(1, 1.4*M/2, bins)
     R_range = torch.cat((torch.tensor([0]), R_range))
-    power_spectrum = torch.zeros(len(R_range)-1, dtype=target.dtype)
+    power_spectrum = torch.zeros(len(image), len(R_range)-1, dtype=image.dtype)
     if device=='gpu':
         R = R.cuda()
         R_range = R_range.cuda()
@@ -1626,7 +1626,7 @@ def get_power_spectrum(target, bins, bin_type='log', device='gpu'):
 
     for i in range(len(R_range)-1):
         select = (R >= R_range[i]) * (R < R_range[i+1])
-        power_spectrum[i] = modulus[select].mean()
+        power_spectrum[i] = (modulus[:,select]**2).mean().log()
     return power_spectrum, R_range
 
 def reduced_ST(S, J, L):
