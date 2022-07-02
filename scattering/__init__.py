@@ -69,24 +69,19 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                 if image_b is None:
                     print('should provide a valid image_b.')
                 else:
-                    st_calc = Scattering2d(
-                        M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, 
-                        ref_a=target, ref_b=image_b)
+                    st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b)
             else:
-                st_calc = Scattering2d(
-                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=target, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=target, )
         if mode=='estimator':
             if image_ref is None:
-                st_calc = Scattering2d(
-                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, )
                 if target_full is None:
                     temp = target
                 else:
                     temp = target_full
                 st_calc.add_synthesis_P00P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
-                st_calc = Scattering2d(
-                    M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
         if estimator_name=='s_mean_iso':
             func_s = lambda x: st_calc.scattering_coef(x, flatten=True)['for_synthesis_iso']
         if estimator_name=='s_mean':
@@ -158,7 +153,10 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if bispectrum_bin_type=='log':
             k_range = np.logspace(0,np.log10(M/2*1.4), bispectrum_bins) # log binning
         bi_calc = Bispectrum_Calculator(k_range, M, N, device=device)
-        func_s = lambda x: bi_calc.forward(x)
+        def func_s(image):
+            bi = bi_calc.forward(image)
+            ps, _ = get_power_spectrum(image, bispectrum_bins, bispectrum_bin_type)
+            return torch.cat((bi, ps), axis=-1)
     # histogram
     def func_h(image):
         flat_image = image.reshape(len(image),-1)
@@ -361,27 +359,14 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
         random_phase_top   = (np.random.normal(0,1,(N_image,1,N//2-1)) + np.random.normal(0,1,(N_image,1,N//2-1))*1j)
         random_phase_middle= (np.random.normal(0,1,(N_image,1,N//2-1)) + np.random.normal(0,1,(N_image,1,N//2-1))*1j)
         random_phase_corners=np.random.normal(0,1,(N_image,3))
-
+        
     gaussian_phase = np.concatenate((
         np.concatenate((
-            random_phase_corners[:,1,None,None],
-            random_phase_left,
-            random_phase_corners[:,2,None,None],
-            -random_phase_left[:,::-1,:],
+            random_phase_corners[:,1,None,None], random_phase_left, random_phase_corners[:,2,None,None], -random_phase_left[:,::-1,:]
         ),axis=-2),
         np.concatenate((
-            np.concatenate((
-                random_phase_top,
-                random_phase_corners[:,0,None,None],
-                -random_phase_top[:,:,::-1],
-            ),axis=-1),
-            random_phase,
-            np.concatenate((
-                random_phase_middle, 
-                np.zeros(N_image)[:,None,None], 
-                -random_phase_middle[:,:,::-1],
-            ),axis=-1), 
-           -random_phase[:,::-1,::-1],
+            np.concatenate((random_phase_top, random_phase_corners[:,0,None,None], -random_phase_top[:,:,::-1]),axis=-1), random_phase,
+            np.concatenate((random_phase_middle, np.zeros(N_image)[:,None,None], -random_phase_middle[:,:,::-1]),axis=-1), -random_phase[:,::-1,::-1],
         ),axis=-2),
     ),axis=-1)
 
@@ -403,10 +388,10 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
 # angular fft of C01 and C11
 def fft_coef(coef, index_type, L):
     C01_f = torch.fft.fft(
-        coef[:,index_type==3].reshape(len(coef),-1,L)+
+        coef[:,index_type==3].reshape(len(coef),-1,L) +
         coef[:,index_type==4].reshape(len(coef),-1,L) * 1j, norm='ortho')
     C11_f =torch.fft.fft2(
-        coef[:,index_type==5].reshape(len(coef),-1,L,L)+
+        coef[:,index_type==5].reshape(len(coef),-1,L,L) +
         coef[:,index_type==6].reshape(len(coef),-1,L,L) * 1j, norm='ortho')
     return C01_f, C11_f
 
