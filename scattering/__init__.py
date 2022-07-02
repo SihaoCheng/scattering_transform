@@ -30,6 +30,7 @@ def synthesis(
     s_cov_func_params=[],
     Fourier=False,
     target_full=None,
+    hist=False,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
@@ -87,13 +88,11 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                 st_calc = Scattering2d(
                     M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
         if estimator_name=='s_mean_iso':
-            def func(image):
-                return st_calc.scattering_coef(image, flatten=True)['for_synthesis_iso']
+            func_s = lambda x: st_calc.scattering_coef(x, flatten=True)['for_synthesis_iso']
         if estimator_name=='s_mean':
-            def func(image):
-                return st_calc.scattering_coef(image, flatten=True)['for_synthesis']
+            func_s = lambda x: st_calc.scattering_coef(x, flatten=True)['for_synthesis']
         if 's_cov_func' in estimator_name:
-            def func(image):
+            def func_s(image):
                 s_cov_set = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, 
                     C11_criteria=C11_criteria, 
@@ -101,7 +100,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                 )
                 return s_cov_func(s_cov_set, s_cov_func_params)
         if estimator_name=='s_cov_iso_para_perp':
-            def func(image):
+            def func_s(image):
                 result = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
@@ -110,7 +109,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                 select = (index_type<3) + ((l2==0) + (l2==L//2)) * ((l3==0) + (l3==L//2) + (l3==-1))
                 return result['for_synthesis_iso'][:,select]
         if estimator_name=='s_cov_iso_iso':
-            def func(image):
+            def func_s(image):
                 result = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
                     normalization=normalization
@@ -125,19 +124,11 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                     (coef[:,index_type==6].reshape(-1,L,L).mean((-2,-1)).reshape(len(coef),-1)),
                 ), dim=-1)
         if estimator_name=='s_cov_iso':
-            def func(image):
-                return st_calc.scattering_cov(
-                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
-                    normalization=normalization
-                )['for_synthesis_iso']
+            func_s = lambda x: st_calc.scattering_cov(x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, normalization=normalization)['for_synthesis_iso']
         if estimator_name=='s_cov':
-            def func(image):
-                return st_calc.scattering_cov(
-                    image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
-                    normalization=normalization
-                )['for_synthesis']
+            func_s = lambda x: st_calc.scattering_cov(x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, normalization=normalization)['for_synthesis']
         if estimator_name=='s_cov_2fields_iso':
-            def func(image):
+            def func_s(image):
                 result = st_calc.scattering_cov_2fields(
                     image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
                     normalization=normalization
@@ -147,7 +138,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                         (result['index_for_synthesis_iso'][0]!=15)* (result['index_for_synthesis_iso'][0]!=19)
                 return result['for_synthesis_iso'][:,select]
         if estimator_name=='s_cov_2fields':
-            def func(image):
+            def func_s(image):
                 result = st_calc.scattering_cov_2fields(
                     image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
                     normalization=normalization
@@ -158,8 +149,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
                 return result['for_synthesis'][:,select]
     if 'alpha_cov' in estimator_name:
         aw_calc = AlphaScattering2d_cov(M, N, J, L, wavelets=wavelets, device=device)
-        def func(image):
-            return aw_calc.forward(image)
+        func_s = lambda x: aw_calc.forward(x)
     if 'bi' in estimator_name:
         if bispectrum_bins is None:
             bispectrum_bins = J-1
@@ -168,8 +158,16 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if bispectrum_bin_type=='log':
             k_range = np.logspace(0,np.log10(M/2*1.4), bispectrum_bins) # log binning
         bi_calc = Bispectrum_Calculator(k_range, M, N, device=device)
+        func_s = lambda x: bi_calc.forward(x)
+    # histogram
+    def func_h(image):
+        flat_image = image.reshape(len(image),-1)
+        return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[1]).mean(-1) / flat_image.std(-1)[:,None]
+    
+    if hist:
         def func(image):
-            return bi_calc.forward(image)
+            return torch.cat((func_s(image), func_h(image)), axis=-1)
+    else: func = func_s
     
     # define loss function
     def quadratic_loss(target, model):
