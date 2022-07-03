@@ -1619,10 +1619,10 @@ def get_power_spectrum(image, bins, bin_type='log', device='gpu'):
     Ygrid, Xgrid = torch.meshgrid(Y,X, indexing='ij')
     R = ((Xgrid - M/2)**2 + (Ygrid - N/2)**2)**0.5
     if bin_type=='log': 
-        R_range = torch.logspace(0.0, np.log10(1.4*M/2), bins)
+        R_range = torch.logspace(0.0, np.log10(1.4*M/2), bins+1)
     else:
-        R_range = torch.linspace(1, 1.4*M/2, bins)
-    R_range = torch.cat((torch.tensor([0]), R_range))
+        R_range = torch.linspace(1, 1.4*M/2, bins+1)
+#     R_range = torch.cat((torch.tensor([0]), R_range))
     power_spectrum = torch.zeros(len(image), len(R_range)-1, dtype=image.dtype)
     if device=='gpu':
         R = R.cuda()
