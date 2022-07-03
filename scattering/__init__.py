@@ -156,7 +156,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         def func_s(image):
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bispectrum_bins, bispectrum_bin_type)
-            return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[None,:], ps, bi), axis=-1)
+            return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[None,:], bi), axis=-1)
     # histogram
     def func_h(image):
         flat_image = image.reshape(len(image),-1)
