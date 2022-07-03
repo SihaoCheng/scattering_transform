@@ -1536,13 +1536,12 @@ class Bispectrum_Calculator(object):
         if not torch.cuda.is_available(): device='cpu'
         # k_range in unit of pixel in Fourier space
         self.device = device
-        if k_range is not None:
-            self.k_range = k_range
-        else:
+        if k_range is None:
             if bin_type=='linear':
-                self.k_range = np.linspace(1, M/2*1.4, bins) # linear binning
+                k_range = np.linspace(1, M/2*1.4, bins) # linear binning
             if bin_type=='log':
-                self.k_range = np.logspace(0, np.log10(M/2*1.4), bins) # log binning
+                k_range = np.logspace(0, np.log10(M/2*1.4), bins) # log binning
+        self.k_range = k_range
         self.M = M
         self.N = N
         X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
