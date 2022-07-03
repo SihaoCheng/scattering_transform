@@ -1541,6 +1541,7 @@ class Bispectrum_Calculator(object):
                 k_range = np.linspace(1, M/2*1.4, bins+1) # linear binning
             if bin_type=='log':
                 k_range = np.logspace(0, np.log10(M/2*1.4), bins+1) # log binning
+#         k_range = np.concatenate((np.array([0]), k_range), axis=0)
         self.k_range = k_range
         self.M = M
         self.N = N
