@@ -148,11 +148,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
     if 'bi' in estimator_name:
         if bispectrum_bins is None:
             bispectrum_bins = J-1
-        if bispectrum_bin_type=='linear':
-            k_range = np.linspace(1, M/2*1.4, bispectrum_bins) # linear binning
-        if bispectrum_bin_type=='log':
-            k_range = np.logspace(0,np.log10(M/2*1.4), bispectrum_bins) # log binning
-        bi_calc = Bispectrum_Calculator(k_range, M, N, device=device)
+        bi_calc = Bispectrum_Calculator(M, N, bins=bispectrum_bins, bin_type=bispectrum_bin_type, device=device)
         def func_s(image):
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bispectrum_bins, bispectrum_bin_type)
