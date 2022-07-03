@@ -1600,7 +1600,12 @@ def get_power_spectrum(image, bins, bin_type='log', device='gpu'):
     '''
     get the power spectrum of a given image
     '''
+    if type(image) == np.ndarray:
+            image = torch.from_numpy(image)      
     if not torch.cuda.is_available(): device='cpu'
+    if self.device=='gpu':
+            image   = image.cuda()
+            
     M, N = image.shape[-2:]
     modulus = torch.fft.fftn(image, dim=(-2,-1)).abs()
     
