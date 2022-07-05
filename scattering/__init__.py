@@ -156,11 +156,35 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
     # histogram
     def func_h(image):
         flat_image = image.reshape(len(image),-1)
-        return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[1]).mean(-1) / flat_image.std(-1)[:,None]
+        return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+    def smooth(image, j):
+        M, N = image.shape[-2:]
+        X = torch.arange(M)[:,None]
+        Y = torch.arange(N)[None,:]
+        R2 = (X-M//2)**2 + (Y-N//2)**2
+        weight_f = torch.fft.fftshift(torch.exp(-0.5 * R2 / (M//(2**j)//2)**2)).cuda()
+        image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
+        return image_smoothed.real
+    def func_hj(image):
+        N_img = len(image_input[:2])
+        cumsum_list = []
+        flat_image = image.reshape(len(image),-1)
+        cumsum_list.append(
+            flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+        )
+        for j in range(J):
+            flat_image = smooth(image, j).reshape(len(image),-1)
+            cumsum_list.append(
+                flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+            )
+        return torch.cat((cumsum_list), dim=-1)
     
     if hist:
         def func(image):
             return torch.cat((func_s(image), func_h(image)), axis=-1)
+    elif hist_j:
+        def func(image):
+            return torch.cat((func_s(image), func_hj(image)), axis=-1)
     else: func = func_s
     
     # define loss function
