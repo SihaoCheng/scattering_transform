@@ -213,7 +213,7 @@ def func_hist_j(image, J):
         flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
     )
     for j in range(J):
-        subsample_rate = int(min(2**(j-1), 1))
+        subsample_rate = int(max(2**(j-1), 1))
         smoothed_image = smooth(image, j)[:,::subsample_rate,::subsample_rate]
         flat_image = smoothed_image.reshape(len(image),-1)
         cumsum_list.append(
