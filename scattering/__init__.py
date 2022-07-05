@@ -182,9 +182,10 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
             flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
         )
         for j in range(J):
-            flat_image = smooth(image, j).reshape(len(image),-1)
+            smoothed_image = smooth(image, j)[:,::j**0,::j**0]
+            flat_image = smoothed_image.reshape(len(image),-1)
             cumsum_list.append(
-                flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+                flat_image.sort(dim=-1).values.reshape(len(image),-1,smoothed_image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
             )
         return torch.cat((cumsum_list), dim=-1)
     
