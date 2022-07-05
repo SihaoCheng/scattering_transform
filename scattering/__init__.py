@@ -159,12 +159,12 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         if bispectrum_bins is None:
             bispectrum_bins = J-1
         bi_calc = Bispectrum_Calculator(M, N, bins=bispectrum_bins, bin_type=bispectrum_bin_type, device=device)
-        def func_b(image):
+        def func_bi(image):
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
     # histogram
-    def func_h(image):
+    def func_hist(image):
         flat_image = image.reshape(len(image),-1)
         return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
     def smooth(image, j):
@@ -175,7 +175,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         weight_f = torch.fft.fftshift(torch.exp(-0.5 * R2 / (M//(2**j)//2)**2)).cuda()
         image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
         return image_smoothed.real
-    def func_hj(image, J):
+    def func_hist_j(image, J):
         cumsum_list = []
         flat_image = image.reshape(len(image),-1)
         cumsum_list.append(
@@ -192,12 +192,14 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         coef_list = []
         if estimator_name!='':
             coef_list.append(func_s(image))
+        if ps:
+            coef_list.append(func_ps(image))
         if bi:
-            coef_list.append(func_b(image))
+            coef_list.append(func_bi(image))
         if hist:
-            coef_list.append(func_h(image))
+            coef_list.append(func_hist(image))
         if hist_j:
-            coef_list.append(func_hj(image, J))
+            coef_list.append(func_hist_j(image, J))
         return torch.cat(coef_list, axis=-1)
     
     # define loss function
