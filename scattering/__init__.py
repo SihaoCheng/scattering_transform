@@ -167,7 +167,6 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
         return image_smoothed.real
     def func_hj(image, J):
-        N_img = len(image_input[:2])
         cumsum_list = []
         flat_image = image.reshape(len(image),-1)
         cumsum_list.append(
