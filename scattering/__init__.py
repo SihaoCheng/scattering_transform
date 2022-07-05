@@ -31,6 +31,7 @@ def synthesis(
     Fourier=False,
     target_full=None,
     hist=False,
+    hist_j=False,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
@@ -165,7 +166,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         weight_f = torch.fft.fftshift(torch.exp(-0.5 * R2 / (M//(2**j)//2)**2)).cuda()
         image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
         return image_smoothed.real
-    def func_hj(image):
+    def func_hj(image, J):
         N_img = len(image_input[:2])
         cumsum_list = []
         flat_image = image.reshape(len(image),-1)
@@ -184,7 +185,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
             return torch.cat((func_s(image), func_h(image)), axis=-1)
     elif hist_j:
         def func(image):
-            return torch.cat((func_s(image), func_hj(image)), axis=-1)
+            return torch.cat((func_s(image), func_hj(image, J)), axis=-1)
     else: func = func_s
     
     # define loss function
