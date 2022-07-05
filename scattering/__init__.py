@@ -153,9 +153,9 @@ Use * or + to connect more than one condition.
     # power spectrum
     if ps_bins is None:
         ps_bins = J-1
-        def func_ps(image):
-            ps, _ = get_power_spectrum(image, bins=ps_bins, bin_type=ps_bin_type)
-            return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps), axis=-1)
+    def func_ps(image):
+        ps, _ = get_power_spectrum(image, bins=ps_bins, bin_type=ps_bin_type)
+        return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps), axis=-1)
     # bispectrum
     if bi:
         if bispectrum_bins is None:
