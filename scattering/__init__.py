@@ -182,7 +182,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
             flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
         )
         for j in range(J):
-            smoothed_image = smooth(image, j)[:,::j**0,::j**0]
+            smoothed_image = smooth(image, j)[:,::2**j,::2**j]
             flat_image = smoothed_image.reshape(len(image),-1)
             cumsum_list.append(
                 flat_image.sort(dim=-1).values.reshape(len(image),-1,smoothed_image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
