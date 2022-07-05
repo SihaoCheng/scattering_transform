@@ -151,7 +151,7 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         bi_calc = Bispectrum_Calculator(M, N, bins=bispectrum_bins, bin_type=bispectrum_bin_type, device=device)
         def func_s(image):
             bi = bi_calc.forward(image)
-            ps, _ = get_power_spectrum(image, bispectrum_bins, bispectrum_bin_type)
+            ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
     # histogram
     def func_h(image):
