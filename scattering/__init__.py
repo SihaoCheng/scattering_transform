@@ -20,7 +20,6 @@ def synthesis(
     J=None, L=4, M=None, N=None, l_oversampling=1,
     mode='image', optim_algorithm='LBFGS', steps=300, learning_rate=0.2,
     device='gpu', wavelets='morlet', seed=None,
-    bispectrum_bins=None, bispectrum_bin_type='log',
     if_large_batch=False,
     C11_criteria=None,
     normalization='P00',
@@ -30,6 +29,8 @@ def synthesis(
     s_cov_func_params=[],
     Fourier=False,
     target_full=None,
+    ps=False, ps_bins=None, ps_bin_type='log',
+    bi=False, bispectrum_bins=None, bispectrum_bin_type='log',
     hist=False,
     hist_j=False,
 ):
@@ -146,11 +147,19 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
     if 'alpha_cov' in estimator_name:
         aw_calc = AlphaScattering2d_cov(M, N, J, L, wavelets=wavelets, device=device)
         func_s = lambda x: aw_calc.forward(x)
-    if 'bi' in estimator_name:
+    # power spectrum
+    if ps:
+        if ps_bins is None:
+            ps_bins = J-1
+        def func_ps(image):
+            ps, _ = get_power_spectrum(image, bins=ps_bins, bin_type=ps_bin_type)
+            return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps), axis=-1)
+    # bispectrum
+    if bi:
         if bispectrum_bins is None:
             bispectrum_bins = J-1
         bi_calc = Bispectrum_Calculator(M, N, bins=bispectrum_bins, bin_type=bispectrum_bin_type, device=device)
-        def func_s(image):
+        def func_b(image):
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
@@ -179,13 +188,17 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
             )
         return torch.cat((cumsum_list), dim=-1)
     
-    if hist:
-        def func(image):
-            return torch.cat((func_s(image), func_h(image)), axis=-1)
-    elif hist_j:
-        def func(image):
-            return torch.cat((func_s(image), func_hj(image, J)), axis=-1)
-    else: func = func_s
+    def func(image):
+        coef_list = []
+        if estimator_name!='':
+            coef_list.append(func_s(image))
+        if bi:
+            coef_list.append(func_b(image))
+        if hist:
+            coef_list.append(func_h(image))
+        if hist_j:
+            coef_list.append(func_hj(image, J))
+        return torch.cat(coef_list, axis=-1)
     
     # define loss function
     def quadratic_loss(target, model):
