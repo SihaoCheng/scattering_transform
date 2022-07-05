@@ -35,7 +35,9 @@ def synthesis(
     hist_j=False,
 ):
     '''
-the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', or 'bispectrum' the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. Use * or + to connect more than one condition.
+the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', 
+the C11_criteria is the condition on j1 and j2 to compute coefficients, in addition to the condition that j2 >= j1. 
+Use * or + to connect more than one condition.
     '''
     if not torch.cuda.is_available(): device='cpu'
     np.random.seed(seed)
@@ -147,13 +149,6 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
     if 'alpha_cov' in estimator_name:
         aw_calc = AlphaScattering2d_cov(M, N, J, L, wavelets=wavelets, device=device)
         func_s = lambda x: aw_calc.forward(x)
-    # power spectrum
-    if ps:
-        if ps_bins is None:
-            ps_bins = J-1
-        def func_ps(image):
-            ps, _ = get_power_spectrum(image, bins=ps_bins, bin_type=ps_bin_type)
-            return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps), axis=-1)
     # bispectrum
     if bi:
         if bispectrum_bins is None:
@@ -163,38 +158,15 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
-    # histogram
-    def func_hist(image):
-        flat_image = image.reshape(len(image),-1)
-        return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
-    def smooth(image, j):
-        M, N = image.shape[-2:]
-        X = torch.arange(M)[:,None]
-        Y = torch.arange(N)[None,:]
-        R2 = (X-M//2)**2 + (Y-N//2)**2
-        weight_f = torch.fft.fftshift(torch.exp(-0.5 * R2 / (M//(2**j)//2)**2)).cuda()
-        image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
-        return image_smoothed.real
-    def func_hist_j(image, J):
-        cumsum_list = []
-        flat_image = image.reshape(len(image),-1)
-        cumsum_list.append(
-            flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
-        )
-        for j in range(J):
-            smoothed_image = smooth(image, j)[:,::2**j,::2**j]
-            flat_image = smoothed_image.reshape(len(image),-1)
-            cumsum_list.append(
-                flat_image.sort(dim=-1).values.reshape(len(image),-1,smoothed_image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
-            )
-        return torch.cat((cumsum_list), dim=-1)
     
     def func(image):
         coef_list = []
         if estimator_name!='':
             coef_list.append(func_s(image))
         if ps:
-            coef_list.append(func_ps(image))
+            if ps_bins is None:
+                ps_bins = J-1
+            coef_list.append(func_ps(image, bins=ps_bins, bin_type=ps_bin_type))
         if bi:
             coef_list.append(func_bi(image))
         if hist:
@@ -216,6 +188,38 @@ the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_c
         Fourier=Fourier,
     )
     return image_syn
+
+# power spectrum
+def func_ps(image, bins, bin_type):
+    ps, _ = get_power_spectrum(image, bins=bins, bin_type=bin_type)
+    return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps), axis=-1)
+# histogram
+def func_hist(image):
+    flat_image = image.reshape(len(image),-1)
+    return flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+def smooth(image, j):
+    M, N = image.shape[-2:]
+    X = torch.arange(M)[:,None]
+    Y = torch.arange(N)[None,:]
+    R2 = (X-M//2)**2 + (Y-N//2)**2
+    weight_f = torch.fft.fftshift(torch.exp(-0.5 * R2 / (M//(2**j)//2)**2)).cuda()
+    image_smoothed = torch.fft.ifftn(torch.fft.fftn(image, dim=(-2,-1)) * weight_f[None,:,:], dim=(-2,-1))
+    return image_smoothed.real
+def func_hist_j(image, J):
+    cumsum_list = []
+    flat_image = image.reshape(len(image),-1)
+    cumsum_list.append(
+        flat_image.sort(dim=-1).values.reshape(len(image),-1,image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+    )
+    for j in range(J):
+        smoothed_image = smooth(image, j)[:,::2**j,::2**j]
+        flat_image = smoothed_image.reshape(len(image),-1)
+        cumsum_list.append(
+            flat_image.sort(dim=-1).values.reshape(len(image),-1,smoothed_image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
+        )
+    return torch.cat((cumsum_list), dim=-1)
+
+
 
 # manipulate output of flattened scattering_cov
 def synthesis_general(
