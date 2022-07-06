@@ -1531,6 +1531,92 @@ class Scattering2d(object):
 
         return I1
 
+
+class Trispectrum_Calculator(object):
+    def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu'):
+        if not torch.cuda.is_available(): device='cpu'
+        # k_range in unit of pixel in Fourier space
+        self.device = device
+        if k_range is None:
+            if bin_type=='linear':
+                k_range = np.linspace(1, M/2*1.4, bins+1) # linear binning
+            if bin_type=='log':
+                k_range = np.logspace(0, np.log10(M/2*1.4), bins+1) # log binning
+#         k_range = np.concatenate((np.array([0]), k_range), axis=0)
+        self.k_range = k_range
+        self.M = M
+        self.N = N
+        X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
+        d = ((X-M//2)**2+(Y-N//2)**2)**0.5
+        
+        self.k_filters = np.zeros((len(k_range)-1, M, N), dtype=bool)
+        for i in range(len(k_range)-1):
+            self.k_filters[i,:,:] = np.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
+        self.k_filters_torch = torch.from_numpy(self.k_filters)
+        refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1)).real
+        
+        self.select = torch.zeros(
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1), 
+            dtype=bool
+        )
+        self.T_ref_array = torch.zeros(
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1),
+            dtype=torch.float32
+        )
+        for i1 in range(len(self.k_range)-1):
+            for i2 in range(i1+1):
+                for i3 in range(i2+1):
+                    for i4 in range(i3+1):
+                        if True: #i2 + i3 >= i1 :
+                            self.select[i1, i2, i3, i4] = True
+                            self.B_ref_array[i1, i2, i3, i4] = (refs[i1] * refs[i2] * refs[i3] * refs[i4]).mean()
+        if device=='gpu':
+            self.k_filters_torch = self.k_filters_torch.cuda()
+            self.select = self.select.cuda()
+            self.T_ref_array = self.T_ref_array.cuda()
+    
+    def forward(self, image, normalization='image'):
+        '''
+        normalization is either 'image' or 'dirac'.
+        '''
+        if type(image) == np.ndarray:
+            image = torch.from_numpy(image)
+
+        T_array = torch.zeros(
+            (len(image), len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1), 
+            dtype=image.dtype
+        )
+        
+        if self.device=='gpu':
+            image   = image.cuda()
+            T_array = T_array.cuda()
+        
+        image_f = torch.fft.fftn(image, dim=(-2,-1))
+        if normalization=='image':
+            conv = torch.fft.ifftn(
+                image_f[None,...] * self.k_filters_torch[:,None,...],
+                dim=(-2,-1)
+            ).real
+        if normalization=='dirac':
+            conv = torch.fft.ifftn(
+                image_f[None,...]*0 + self.k_filters_torch[:,None,...],
+                dim=(-2,-1)
+            ).real
+        conv_std = conv.std((-1,-2))
+        for i1 in range(len(self.k_range)-1):
+            for i2 in range(i1+1):
+                for i3 in range(i2+1):
+                    for i4 in range(i3+1):
+                        if True: #i2 + i3 >= i1 :
+                            T = conv[i1] * conv[i2] * conv[i3] * conv[i4]
+                            T_array[:, i1, i2, i3, i4] = T.mean((-2,-1)) / \
+                                conv_std[i1] / conv_std[i2] / conv_std[i3] / conv_std[i4]
+                            # *1e8 # / self.B_ref_array[k1, k2, k3]
+        return T_array.reshape(len(image), (len(self.k_range)-1)**4)[:,self.select.flatten()]
+
+    
+    
+    
 class Bispectrum_Calculator(object):
     def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu'):
         if not torch.cuda.is_available(): device='cpu'
