@@ -1569,7 +1569,7 @@ class Trispectrum_Calculator(object):
                     for i4 in range(i3+1):
                         if True: #i2 + i3 >= i1 :
                             self.select[i1, i2, i3, i4] = True
-                            self.B_ref_array[i1, i2, i3, i4] = (refs[i1] * refs[i2] * refs[i3] * refs[i4]).mean()
+                            self.T_ref_array[i1, i2, i3, i4] = (refs[i1] * refs[i2] * refs[i3] * refs[i4]).mean()
         if device=='gpu':
             self.k_filters_torch = self.k_filters_torch.cuda()
             self.select = self.select.cuda()
@@ -1611,7 +1611,7 @@ class Trispectrum_Calculator(object):
                             T = conv[i1] * conv[i2] * conv[i3] * conv[i4]
                             T_array[:, i1, i2, i3, i4] = T.mean((-2,-1)) / \
                                 conv_std[i1] / conv_std[i2] / conv_std[i3] / conv_std[i4]
-                            # *1e8 # / self.B_ref_array[k1, k2, k3]
+                            # *1e8 # / self.T_ref_array[k1, k2, k3]
         return T_array.reshape(len(image), (len(self.k_range)-1)**4)[:,self.select.flatten()]
 
     
