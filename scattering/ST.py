@@ -1556,11 +1556,11 @@ class Trispectrum_Calculator(object):
         refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1)).real
         
         self.select = torch.zeros(
-            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1), 
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
             dtype=bool
         )
         self.T_ref_array = torch.zeros(
-            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1),
+            (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1),
             dtype=torch.float32
         )
         for i1 in range(len(self.k_range)-1):
@@ -1583,7 +1583,7 @@ class Trispectrum_Calculator(object):
             image = torch.from_numpy(image)
 
         T_array = torch.zeros(
-            (len(image), len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), len(self.k_range)-1), 
+            (len(image), len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
             dtype=image.dtype
         )
         
