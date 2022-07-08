@@ -1530,7 +1530,7 @@ class Scattering2d(object):
         )#.abs()**pseudo_coef
 
         return I1
-
+    
 
 class Trispectrum_Calculator(object):
     def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu'):
@@ -1686,6 +1686,13 @@ class Bispectrum_Calculator(object):
                 image_f[None,...]*0 + self.k_filters_torch[:,None,...],
                 dim=(-2,-1)
             ).real
+            
+#         if remove_edge: 
+#             edge_mask = get_edge_masks(self.M, self.N, )self.edge_masks[:,None,:,:]
+#             edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,:,None,None]
+#         else: 
+#             edge_mask = 1
+            
         conv_std = conv.std((-1,-2))
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1+1):
@@ -1697,6 +1704,8 @@ class Bispectrum_Calculator(object):
                         # *1e8 # / self.B_ref_array[k1, k2, k3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
+    
+# power spectrum computer
 def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='gpu'):
     '''
     get the power spectrum of a given image
@@ -1737,6 +1746,17 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
         power_spectrum[:,i] = ((modulus**2*select[None,...]).sum((-2,-1))/select.sum()).log()
     return power_spectrum, k_range
 
+
+# util to reduce edge effects
+def get_edge_masks(M, N, J):
+    edge_masks = torch.empty((J, M, N))
+    X, Y = torch.meshgrid(torch.arange(M), torch.arange(N), indexing='ij')
+    for j in range(J):
+        edge_masks[j] = (X>=2**j*2) * (X<=M-2**j*2) * (Y>=2**j*2) * (Y<=N-2**j*2)
+    return edge_masks
+
+
+# util to reduce ST coefficients
 def reduced_ST(S, J, L):
     s0 = S[:,0:1]
     s1 = S[:,1:J+1]
