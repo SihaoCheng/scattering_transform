@@ -83,7 +83,8 @@ Use * or + to connect more than one condition.
                     temp = target
                 else:
                     temp = target_full
-                st_calc.add_synthesis_P00P11(temp, 'iso' in estimator_name, C11_criteria)
+                if normalization=='P00': st_calc.add_synthesis_P00(temp, 'iso' in estimator_name)
+                else: st_calc.add_synthesis_P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
                 st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
         if estimator_name=='s_mean_iso':
