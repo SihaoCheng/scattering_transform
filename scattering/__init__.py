@@ -892,4 +892,33 @@ if __name__ == "__main__":
     plt.show()
 
     print(0)
+    
+    
+# for large data, scattering computation needs to be chunked to hold on memory
+def chunk_model(X, st_calc, nchunks):
+    partition = np.array_split(np.arange(X.shape[0]), nchunks)
+    covs_l = [] 
+    covs_l_iso = [] 
+    for part in partition:
+        X_here = X[part,:,:]
+        
+        s_cov_here = st_calc.scattering_cov(X_here)
+
+        # keep relevent information only
+        for key in list(s_cov_here.keys()):
+            if key not in [
+                'index_for_synthesis_iso', 'for_synthesis_iso',
+                'index_for_synthesis', 'for_synthesis'
+            ]:
+                del s_cov_here[key]
+            idx_iso = to_numpy(s_cov_here['index_for_synthesis_iso']).astype(object)
+            cov_iso = s_cov_here['for_synthesis_iso']#.cpu()
+            idx = to_numpy(s_cov_here['index_for_synthesis']).astype(object)
+            cov = s_cov_here['for_synthesis']#.cpu()
+        
+        covs_l_iso.append(cov_iso)
+        covs_l.append(cov)
+    s_cov = {'index_for_synthesis_iso':idx_iso, 'for_synthesis_iso':torch.cat(covs_l_iso),
+             'index_for_synthesis':idx, 'for_synthesis':torch.cat(covs_l)}
+    return s_cov    
 
