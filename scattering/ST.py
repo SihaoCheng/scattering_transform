@@ -1030,8 +1030,8 @@ class Scattering2d(object):
         filters_set = self.filters_set
         weight = self.weight
         if use_ref:
-            ref_P00 = self.ref_scattering_cov['P00']
-            ref_P11 = self.ref_scattering_cov['P11']
+            if normalization=='P00': ref_P00 = self.ref_scattering_cov['P00']
+            else: ref_P11 = self.ref_scattering_cov['P11']
 
         # convert numpy array input into torch tensors
         if type(data) == np.ndarray:
