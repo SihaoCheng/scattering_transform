@@ -895,6 +895,8 @@ if __name__ == "__main__":
     
     
 # for large data, scattering computation needs to be chunked to hold on memory
+
+from scattering.utils import to_numpy
 def chunk_model(X, st_calc, nchunks):
     partition = np.array_split(np.arange(X.shape[0]), nchunks)
     covs_l = [] 
