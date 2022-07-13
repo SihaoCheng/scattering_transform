@@ -351,8 +351,8 @@ def synthesis_general(
 def binning2x2(image):
     return (image[...,::2,::2] + image[...,1::2,::2] + image[...,::2,1::2] + image[...,1::2,1::2])/4
 
-def whiten(image, global=False):
-    if global:
+def whiten(image, overall=False):
+    if overall:
         return (image - image.mean()) / image.std()
     else:
         return (image - image.mean((-2,-1))[:,None,None]) / image.std((-2,-1))[:,None,None]
