@@ -33,6 +33,8 @@ def synthesis(
     bi=False, bispectrum_bins=None, bispectrum_bin_type='log',
     hist=False,
     hist_j=False,
+    ensemble=False,
+    N_ensemble=1,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', 
@@ -48,17 +50,25 @@ Use * or + to connect more than one condition.
         print('input_size: ', target.shape)
     if image_init is None:
         if mode=='image':
-            image_init = np.random.normal(
-                target.mean((-2,-1))[:,None,None],
-                target.std((-2,-1))[:,None,None],
-                target.shape
-            )
+            if not ensemble:
+                image_init = np.random.normal(
+                    target.mean((-2,-1))[:,None,None],
+                    target.std((-2,-1))[:,None,None],
+                    target.shape
+                )
+            else:
+                image_init = np.random.normal(
+                    target.mean((-2,-1))[:,None,None],
+                    target.std((-2,-1))[:,None,None],
+                    (N_ensemble, target.shape[-2], target.shape[-1])
+                )
         else:
             if M is None:
                 print('please assign image size M and N.')
             # if 's_' in estimator_name:
             #     image_init = get_random_data(target[:,], target, M=M, N=N, N_image=target.shape[0], mode='func', seed=seed)
-            image_init = np.random.normal(0,1,(target.shape[0],M,N))
+            if not ensemble: image_init = np.random.normal(0,1,(target.shape[0],M,N))
+            else: image_init = np.random.normal(0,1,(N_ensemble,M,N))
     elif type(image_init) is str:
         if image_init=='random phase':
             image_init = get_random_data(target, seed=seed) # gaussian field
@@ -297,7 +307,8 @@ def synthesis_general(
         optimizer.zero_grad()
         loss = 0
         estimator_model = estimator_function(image_model.image)
-        loss = loss_function(estimator_model, estimator_target)
+        if ensemble: loss = loss_function(estimator_model.mean(0), estimator_target.mean(0))
+        else: loss = loss_function(estimator_model, estimator_target)
         if print_each_step:
             if optim_algorithm=='LBFGS' or (optim_algorithm!='LBFGS' and (i%100==0 or i%100==-1)):
                 print((estimator_model-estimator_target).abs().max())
