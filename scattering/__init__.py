@@ -201,7 +201,7 @@ Use * or + to connect more than one condition.
         mode=mode, 
         optim_algorithm=optim_algorithm, steps=steps, learning_rate=learning_rate,
         device=device, precision=precision, print_each_step=print_each_step,
-        Fourier=Fourier,
+        Fourier=Fourier, ensemble=ensemble,
     )
     return image_syn
 
