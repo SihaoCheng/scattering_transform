@@ -228,7 +228,8 @@ def func_hist_j(image, J):
 def synthesis_general(
     target, image_init, estimator_function, loss_function, 
     mode='image', optim_algorithm='LBFGS', steps=100, learning_rate=0.5,
-    device='gpu', precision='single', print_each_step=False, Fourier=False
+    device='gpu', precision='single', print_each_step=False, Fourier=False,
+    ensemble=False,
 ):
     # define parameters
     N_image = image_init.shape[0]
@@ -339,8 +340,11 @@ def synthesis_general(
 def binning2x2(image):
     return (image[...,::2,::2] + image[...,1::2,::2] + image[...,::2,1::2] + image[...,1::2,1::2])/4
 
-def whiten(image):
-    return (image - image.mean((-2,-1))[:,None,None]) / image.std((-2,-1))[:,None,None]
+def whiten(image, global=False):
+    if global:
+        return (image - image.mean()) / image.std()
+    else:
+        return (image - image.mean((-2,-1))[:,None,None]) / image.std((-2,-1))[:,None,None]
 
 def remove_slope(images):
     '''
