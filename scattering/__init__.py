@@ -78,7 +78,7 @@ Use * or + to connect more than one condition.
     
     # define calculator and estimator function
     if 's' in estimator_name:
-        if mode=='image':
+        if mode=='image' and not ensemble:
             if '2fields' in estimator_name:
                 if image_b is None:
                     print('should provide a valid image_b.')
@@ -86,7 +86,7 @@ Use * or + to connect more than one condition.
                     st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b)
             else:
                 st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=target, )
-        if mode=='estimator':
+        if mode=='estimator' or ensemble:
             if image_ref is None:
                 st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, )
                 if target_full is None:
