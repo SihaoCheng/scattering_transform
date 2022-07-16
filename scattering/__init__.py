@@ -58,8 +58,8 @@ Use * or + to connect more than one condition.
                 )
             else:
                 image_init = np.random.normal(
-                    target.mean((-2,-1))[:,None,None],
-                    target.std((-2,-1))[:,None,None],
+                    target.mean(),
+                    target.std(),
                     (N_ensemble, target.shape[-2], target.shape[-1])
                 )
         else:
