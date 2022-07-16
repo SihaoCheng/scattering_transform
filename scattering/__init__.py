@@ -311,24 +311,41 @@ def synthesis_general(
         else: loss = loss_function(estimator_model, estimator_target)
         if print_each_step:
             if optim_algorithm=='LBFGS' or (optim_algorithm!='LBFGS' and (i%100==0 or i%100==-1)):
-                print((estimator_model-estimator_target).abs().max())
-                print(
-                    'max residual: ', 
-                    np.max((estimator_model - estimator_target).abs().detach().cpu().numpy()),
-                    ', mean residual: ', 
-                    np.mean((estimator_model - estimator_target).abs().detach().cpu().numpy()),
-                )
+                if not ensemble:
+                    print((estimator_model-estimator_target).abs().max())
+                    print(
+                        'max residual: ', 
+                        np.max((estimator_model - estimator_target).abs().detach().cpu().numpy()),
+                        ', mean residual: ', 
+                        np.mean((estimator_model - estimator_target).abs().detach().cpu().numpy()),
+                    )
+                else:
+                    print((estimator_model.mean(0)-estimator_target.mean(0)).abs().max())
+                    print(
+                        'max residual: ', 
+                        np.max((estimator_model.mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+                        ', mean residual: ', 
+                        np.mean((estimator_model.mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+                    )
         loss.backward()
         return loss
     
     # optimize
     t_start = time.time()
-    print(
-        'max residual: ', 
-        np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
-        ', mean residual: ', 
-        np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
-    )
+    if not ensemble:
+        print(
+            'max residual: ', 
+            np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
+            ', mean residual: ', 
+            np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
+        )
+    else:
+        print(
+            'max residual: ', 
+            np.max((estimator_function(image_model.image).mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+            ', mean residual: ', 
+            np.mean((estimator_function(image_model.image).mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+        )
     if optim_algorithm =='LBFGS':
         i=0
         optimizer.step(closure)
@@ -336,12 +353,20 @@ def synthesis_general(
         for i in range(steps):
             # print('step: ', i)
             optimizer.step(closure)
-    print(
-        'max residual: ', 
-        np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
-        ', mean residual: ', 
-        np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
-    )
+    if not ensemble:
+        print(
+            'max residual: ', 
+            np.max((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
+            ', mean residual: ', 
+            np.mean((estimator_function(image_model.image) - estimator_target).abs().detach().cpu().numpy()),
+        )
+    else:
+        print(
+            'max residual: ', 
+            np.max((estimator_function(image_model.image).mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+            ', mean residual: ', 
+            np.mean((estimator_function(image_model.image).mean(0) - estimator_target.mean(0)).abs().detach().cpu().numpy()),
+        )
     t_end = time.time()
     print('time used: ', t_end - t_start, 's')
 
