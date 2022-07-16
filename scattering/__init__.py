@@ -357,6 +357,27 @@ def whiten(image, overall=False):
     else:
         return (image - image.mean((-2,-1))[:,None,None]) / image.std((-2,-1))[:,None,None]
 
+def filter_radial(img, func, backend='np'):
+    M, N = img.shape[-2:]
+    X = np.arange(M)[:,None]
+    Y = np.arange(N)[None,:]
+    R = ((X-M//2)**2+(Y-N//2)**2)**0.5
+    if len(img.shape)==2:
+        filter = func(R)
+    else:
+        filter = func(R)[None,:,:]
+    if backend=='np':
+        img_f = np.fft.fft2(img)
+        img_filtered = np.fft.ifft2(
+            np.fft.ifftshift(filter, axes=(-2,-1)) * img_f
+        ).real
+    if backend=='torch':
+        img_f = torch.fft.fft2(img)
+        img_filtered = torch.fft.ifft2(
+            torch.fft.ifftshift(filter, dim=(-2,-1)) * img_f
+        ).real
+    return img_filtered
+
 def remove_slope(images):
     '''
         Removing the overall trend of an image by subtracting the result of
