@@ -33,11 +33,11 @@ def init_cosine_projector(s_cov, idx_info):
     cov_type, j1_s, a_s, b_s, l1_s, l1p_s, l2_s = idx_info.T
     idx_info_no_j1_l = np.stack([cov_type, l1_s, l1p_s, l2_s, a_s, b_s]).T.tolist()
     
-#     idx_info_no_j1_l = list(set([tuple(row) for row in idx_info_no_j1_l]))
+    idx_info_no_j1_l = list(set([tuple(row) for row in idx_info_no_j1_l]))
     
-    idx_info_no_j1_l = np.array(idx_info_no_j1_l)
-    _, idx = np.unique(idx_info_no_j1_l, axis=0, return_index=True)
-    idx_info_no_j1_l = idx_info_no_j1_l[np.sort(idx)]
+#     idx_info_no_j1_l = np.array(idx_info_no_j1_l)
+#     _, idx = np.unique(idx_info_no_j1_l, axis=0, return_index=True)
+#     idx_info_no_j1_l = idx_info_no_j1_l[np.sort(idx)]
 
     J = a_s.max() + 1  # TODO. Hack, should infer better the value of J
 
