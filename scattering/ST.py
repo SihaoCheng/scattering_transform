@@ -530,14 +530,17 @@ class Scattering2d(object):
                 ref_a, ref_b, if_large_batch=True
         )
     
-    def add_synthesis_P00(self, s_cov, if_iso):
+    def add_synthesis_P00(self, P00=None, s_cov=None, if_iso=True):
         J = self.J
         L = self.L
         self.ref_scattering_cov = {}
-        if if_iso:
-            self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J].reshape((-1,J,1)))
+        if P00 is not None:
+            self.ref_scattering_cov['P00'] = P00
         else:
-            self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J*L].reshape((-1,J,L)))
+            if if_iso:
+                self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J].reshape((-1,J,1)))
+            else: 
+                self.ref_scattering_cov['P00'] = torch.exp(s_cov[:,1:1+J*L].reshape((-1,J,L)))
         if self.device=='gpu':
             self.ref_scattering_cov['P00'] = self.ref_scattering_cov['P00'].cuda()
             
