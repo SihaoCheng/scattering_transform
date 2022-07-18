@@ -35,6 +35,7 @@ def synthesis(
     hist_j=False,
     ensemble=False,
     N_ensemble=1,
+    reference_P00=None,
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', 
@@ -93,7 +94,9 @@ Use * or + to connect more than one condition.
                     temp = target
                 else:
                     temp = target_full
-                if normalization=='P00': st_calc.add_synthesis_P00(temp, 'iso' in estimator_name)
+                if normalization=='P00': 
+                    if reference_P00 is None: st_calc.add_synthesis_P00(s_cov=temp, if_iso='iso' in estimator_name)
+                    else: st_calc.add_synthesis_P00(P00=reference_P00)
                 else: st_calc.add_synthesis_P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
                 st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
