@@ -961,14 +961,14 @@ if __name__ == "__main__":
 # for large data, scattering computation needs to be chunked to hold on memory
 
 from scattering.utils import to_numpy
-def chunk_model(X, st_calc, nchunks):
+def chunk_model(X, st_calc, nchunks, **kwargs):
     partition = np.array_split(np.arange(X.shape[0]), nchunks)
     covs_l = [] 
     covs_l_iso = [] 
     for part in partition:
         X_here = X[part,:,:]
         
-        s_cov_here = st_calc.scattering_cov(X_here)
+        s_cov_here = st_calc.scattering_cov(X_here, **kwargs)
 
         # keep relevent information only
         for key in list(s_cov_here.keys()):
