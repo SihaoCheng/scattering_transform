@@ -42,16 +42,41 @@ class FourierAngle:
                 C01_half = C01re + 1j * C01im
                 C11_half = C11re + 1j * C11im
                 C01_f = torch.fft.fftn(torch.cat((C01_half, C01_half.conj()), dim=-1), norm='ortho', dim=(-2,-1))
-                C01_f_re = torch.cat((C01_f.real[...,0:L//2+1,:L], C01_f.real[...,L//2+1:,1:L+1]), dim=-2)
-                C01_f_im = torch.cat((torch.cat((C01_f.real[...,0:1,L:L+1], C01_f.imag[...,0:1,1:L]), dim=-1),
-                                      C01_f.imag[...,1:L//2,:L], 
-                                      torch.cat((C01_f.real[...,L//2:L//2+1,L:L+1], C01_f.imag[...,L//2:L//2+1,1:L]), dim=-1), 
-                                      C01_f.imag[...,L//2+1:,1:L+1]
-                                     ), dim=-2)
-#                 C11_f = torch.fft.fftn(torch.cat((C11_half, C11_half.conj()), dim=(-1)), norm='ortho', dim=(-3,-2,-1))
-                
+#                 C01_f_re = torch.cat((
+#                     C01_f.real[...,0:L//2,0:L],
+#                     torch.cat((C01_f.real[...,L//2:,L:L+1], C01_f.real[...,L//2:,1:L]), dim=-1)
+#                 ), dim=-2)
+#                 C01_f_im = torch.cat((
+#                     torch.cat((C01_f.real[...,0:1,L:L+1], C01_f.imag[...,0:1,1:L]), dim=-1),
+#                     C01_f.imag[...,1:L//2,0:L], 
+#                     torch.cat((C01_f.real[...,L//2:L//2+1,0:1], C01_f.imag[...,L//2:L//2+1,1:L]), dim=-1), 
+#                     torch.cat((C01_f.imag[...,L//2+1:,L:L+1], C01_f.imag[...,L//2+1:,1:L]), dim=-1)
+#                 ), dim=-2)
+                C01_fp = torch.cat((
+                    torch.cat((C01_f[...,0:1,0:1].real+1j*C01_f[...,0:1,L:L+1].imag, C01_f[...,0:1,1:L]), dim=-1),
+                    C01_f[...,1:L//2,0:L],
+                    torch.cat((C01_f[...,L//2:L//2+1,0:1].real+1j*C01_f[...,L//2:L//2+1,L:L+1].imag, C01_f[...,L//2:L//2+1,1:L]), dim=-1),
+                    torch.cat((C01_f[...,L//2+1:,L:L+1], C01_f[...,L//2+1:,1:L]), dim=-1),
+                ), dim=-2)
+                C11_f = torch.fft.fftn(torch.cat((C11_half, C11_half.conj()), dim=(-1)), norm='ortho', dim=(-3,-2,-1))
+                C11_fp = torch.cat((
+                    torch.cat((
+                        torch.cat((C11_f[...,0:1,0:1,0:1].real+1j*C11_f[...,0:1,0:1,L:L+1].imag, C11_f[...,0:1,0:1,1:L]), dim=-1),
+                        C11_f[...,0:1,1:L//2,0:L],
+                        torch.cat((C11_f[...,0:1,L//2:L//2+1,0:1].real+1j*C11_f[...,0:1,L//2:L//2+1,L:L+1].imag, C11_f[...,0:1,L//2:L//2+1,1:L]), dim=-1),
+                        torch.cat((C11_f[...,0:1,L//2+1:,L:L+1], C11_f[...,0:1,L//2+1:,1:L]), dim=-1),
+                    ), dim=-2),
+                    C11_f[...,1:L//2,:,0:L],
+                    torch.cat((
+                        torch.cat((C11_f[...,L//2:L//2+1,0:1,0:1].real+1j*C11_f[...,L//2:L//2+1,0:1,L:L+1].imag, C11_f[...,L//2:L//2+1,0:1,1:L]), dim=-1),
+                        C11_f[...,L//2:L//2+1,1:L//2,0:L],
+                        torch.cat((C11_f[...,L//2:L//2+1,L//2:L//2+1,0:1].real+1j*C11_f[...,L//2:L//2+1,L//2:L//2+1,L:L+1].imag, C11_f[...,L//2:L//2+1,L//2:L//2+1,1:L]), dim=-1),
+                        torch.cat((C11_f[...,L//2:L//2+1,L//2+1:,L:L+1], C11_f[...,L//2:L//2+1,L//2+1:,1:L]), dim=-1),
+                    ), dim=-2),
+                    torch.cat((C11_f[...,L//2+1:,:,L:L+1], C11_f[...,L//2+1:,:,1:L]), dim=-1),
+                ), dim=-3)
 #                 C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2,-1))
-                C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3,-2,-1))
+#                 C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3,-2,-1))
             if axis == 'l1':
                 C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2))
                 C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3))
@@ -61,11 +86,11 @@ class FourierAngle:
         idx_info_no_fourier = idx_info[np.isin(cov_type, ['mean', 'P00', 'S1']), :]
 
         # idx_info for C01
-        C01_f_flattened = torch.cat([C01_f_re.reshape(len(s_cov), -1), C01_f_im.reshape(len(s_cov), -1)], dim=-1)
+        C01_f_flattened = torch.cat([C01_fp.real.reshape(len(s_cov), -1), C01_fp.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_C01 = idx_info[np.isin(cov_type, ['C01re', 'C01im']), :]
 
         # idx_info for C11
-        C11_f_flattened = torch.cat([C11_f.real.reshape(len(s_cov), -1), C11_f.imag.reshape(len(s_cov), -1)], dim=-1)
+        C11_f_flattened = torch.cat([C11_fp.real.reshape(len(s_cov), -1), C11_fp.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_C11 = idx_info[np.isin(cov_type, ['C11re', 'C11im']), :]
 
         idx_info_f = np.concatenate([idx_info_no_fourier, idx_info_C01, idx_info_C11])
