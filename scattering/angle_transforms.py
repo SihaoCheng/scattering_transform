@@ -56,7 +56,7 @@ class FourierAngle:
                     torch.cat((C01_f[...,0:1,0:1].real+1j*C01_f[...,0:1,L:L+1].imag, C01_f[...,0:1,1:L]), dim=-1),
                     C01_f[...,1:L//2,0:L],
                     torch.cat((C01_f[...,L//2:L//2+1,0:1].real+1j*C01_f[...,L//2:L//2+1,L:L+1].imag, C01_f[...,L//2:L//2+1,1:L]), dim=-1),
-                    torch.cat((C01_f[...,L//2+1:,L:L+1], C01_f[...,L//2+1:,1:L]), dim=-1),
+                    C01_f[...,L//2+1:,L:],
                 ), dim=-2)
                 C11_f = torch.fft.fftn(torch.cat((C11_half, C11_half.conj()), dim=(-1)), norm='ortho', dim=(-3,-2,-1))
                 C11_fp = torch.cat((
