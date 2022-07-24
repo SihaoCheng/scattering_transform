@@ -76,12 +76,12 @@ class FourierAngle:
         idx_info_no_fourier = idx_info[np.isin(cov_type, ['mean', 'P00', 'S1']), :]
 
         # idx_info for C01
-        C01_f_flattened = torch.cat([C01_f.real.reshape(len(s_cov), -1), C01_f.imag.reshape(len(s_cov), -1)], dim=-1)
-        idx_info_C01 = idx_info[np.isin(cov_type, ['C01re', 'C01im']), :] + idx_info[np.isin(cov_type, ['C01re', 'C01im']), :]
+        C01_f_flattened = torch.cat([C01_fp.real.reshape(len(s_cov), -1), C01_fp.imag.reshape(len(s_cov), -1)], dim=-1)
+        idx_info_C01 = idx_info[np.isin(cov_type, ['C01re', 'C01im']), :] #+ idx_info[np.isin(cov_type, ['C01re', 'C01im']), :]
 
         # idx_info for C11
-        C11_f_flattened = torch.cat([C11_f.real.reshape(len(s_cov), -1), C11_f.imag.reshape(len(s_cov), -1)], dim=-1)
-        idx_info_C11 = idx_info[np.isin(cov_type, ['C11re', 'C11im']), :] + idx_info[np.isin(cov_type, ['C11re', 'C11im']), :]
+        C11_f_flattened = torch.cat([C11_fp.real.reshape(len(s_cov), -1), C11_fp.imag.reshape(len(s_cov), -1)], dim=-1)
+        idx_info_C11 = idx_info[np.isin(cov_type, ['C11re', 'C11im']), :] #+ idx_info[np.isin(cov_type, ['C11re', 'C11im']), :]
 
         idx_info_f = np.concatenate([idx_info_no_fourier, idx_info_C01, idx_info_C11])
         s_covs_f = torch.cat([cov_no_fourier, C01_f_flattened, C11_f_flattened], dim=-1)
