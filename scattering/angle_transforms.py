@@ -83,7 +83,7 @@ class FourierAngle:
                 
                 C11_half = C11re + 1j * C11im
                 C11_f = torch.fft.fftn(torch.cat((C11_half, C11_half.conj()), dim=-1), norm='ortho', dim=(-3,-2,-1)) / 2**0.5
-                C11_fp = C01_ft_index(C11_f, L)
+                C11_fp = C11_ft_index(C11_f, L)
             if axis == 'l1':
                 C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2))
                 C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3))
