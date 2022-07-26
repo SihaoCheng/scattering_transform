@@ -9,6 +9,44 @@ import torch
 # def fourier(N, k) -> np.ndarray: # TODO. Define an orthonormal Fourier basis.
 
 
+def C01_ft_index(C01_f, L):
+    C01_fp = torch.cat((
+        torch.cat((C01_f[...,0:1,0:1].real+1j*C01_f[...,0:1,L:L+1].real, C01_f[...,0:1,1:L]), dim=-1),
+        C01_f[...,1:L//2,0:L],
+        torch.cat((C01_f[...,L//2:L//2+1,0:1].real+1j*C01_f[...,L//2:L//2+1,L:L+1].real, C01_f[...,L//2:L//2+1,1:L]), dim=-1),
+        C01_f[...,L//2+1:,1:L+1].roll(1,-1),
+    ), dim=-2)
+    return C01_fp
+
+def C11_ft_index(C11_f, L):
+    C11_fp = torch.cat((
+        torch.cat((
+            torch.cat((
+                C11_f[...,0:1,0:1,0:1].real+1j*C11_f[...,0:1,0:1,L:L+1].real, 
+                C11_f[...,0:1,0:1,1:L]), dim=-1),
+            C11_f[...,0:1,1:L//2,0:L],
+            torch.cat((
+                C11_f[...,0:1,L//2:L//2+1,0:1].real+1j*C11_f[...,0:1,L//2:L//2+1,L:L+1].real, 
+                C11_f[...,0:1,L//2:L//2+1,1:L]), dim=-1),
+            C11_f[...,0:1,L//2+1:,1:L+1].roll(1,-1),
+        ), dim=-2),
+        C11_f[...,1:L//2,:,0:L],
+        torch.cat((
+            torch.cat((
+                C11_f[...,L//2:L//2+1,0:1,0:1].real+1j*C11_f[...,L//2:L//2+1,0:1,L:L+1].real, 
+                C11_f[...,L//2:L//2+1,0:1,1:L]), dim=-1),
+            C11_f[...,L//2:L//2+1,1:L//2,0:L],
+            torch.cat((
+                C11_f[...,L//2:L//2+1,L//2:L//2+1,0:1].real+1j*C11_f[...,L//2:L//2+1,L//2:L//2+1,L:L+1].real, 
+                C11_f[...,L//2:L//2+1,L//2:L//2+1,1:L]), dim=-1),
+            C11_f[...,L//2:L//2+1,L//2+1:,1:L+1].roll(1,-1),
+        ), dim=-2),
+        C11_f[...,L//2+1:,:,1:L+1].roll(1,-1),
+    ), dim=-3)
+    return C11_fp
+
+
+
 class FourierAngle:
     """
     Perform a Fourier transform along angles l1, l1p, l2.
@@ -41,41 +79,11 @@ class FourierAngle:
             if axis == 'all':
                 C01_half = C01re + 1j * C01im
                 C01_f = torch.fft.fftn(torch.cat((C01_half, C01_half.conj()), dim=-1), norm='ortho', dim=(-2,-1)) / 2**0.5
-                C01_fp = C01_fp = torch.cat((
-                    torch.cat((C01_f[...,0:1,0:1].real+1j*C01_f[...,0:1,L:L+1].real, C01_f[...,0:1,1:L]), dim=-1),
-                    C01_f[...,1:L//2,0:L],
-                    torch.cat((C01_f[...,L//2:L//2+1,0:1].real+1j*C01_f[...,L//2:L//2+1,L:L+1].real, C01_f[...,L//2:L//2+1,1:L]), dim=-1),
-                    C01_f[...,L//2+1:,1:L+1].roll(1,-1),
-                ), dim=-2)
+                C01_fp = C01_ft_index(C01_f, L)
                 
                 C11_half = C11re + 1j * C11im
                 C11_f = torch.fft.fftn(torch.cat((C11_half, C11_half.conj()), dim=-1), norm='ortho', dim=(-3,-2,-1)) / 2**0.5
-                C11_fp = torch.cat((
-                    torch.cat((
-                        torch.cat((
-                            C11_f[...,0:1,0:1,0:1].real+1j*C11_f[...,0:1,0:1,L:L+1].real, 
-                            C11_f[...,0:1,0:1,1:L]), dim=-1),
-                        C11_f[...,0:1,1:L//2,0:L],
-                        torch.cat((
-                            C11_f[...,0:1,L//2:L//2+1,0:1].real+1j*C11_f[...,0:1,L//2:L//2+1,L:L+1].real, 
-                            C11_f[...,0:1,L//2:L//2+1,1:L]), dim=-1),
-                        C11_f[...,0:1,L//2+1:,1:L+1].roll(1,-1),
-                    ), dim=-2),
-                    C11_f[...,1:L//2,:,0:L],
-                    torch.cat((
-                        torch.cat((
-                            C11_f[...,L//2:L//2+1,0:1,0:1].real+1j*C11_f[...,L//2:L//2+1,0:1,L:L+1].real, 
-                            C11_f[...,L//2:L//2+1,0:1,1:L]), dim=-1),
-                        C11_f[...,L//2:L//2+1,1:L//2,0:L],
-                        torch.cat((
-                            C11_f[...,L//2:L//2+1,L//2:L//2+1,0:1].real+1j*C11_f[...,L//2:L//2+1,L//2:L//2+1,L:L+1].real, 
-                            C11_f[...,L//2:L//2+1,L//2:L//2+1,1:L]), dim=-1),
-                        C11_f[...,L//2:L//2+1,L//2+1:,1:L+1].roll(1,-1),
-                    ), dim=-2),
-                    C11_f[...,L//2+1:,:,1:L+1].roll(1,-1),
-                ), dim=-3)
-#                 C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2,-1))
-#                 C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3,-2,-1))
+                C11_fp = C01_ft_index(C11_f, L)
             if axis == 'l1':
                 C01_f = torch.fft.fftn(C01re + 1j * C01im, norm='ortho', dim=(-2))
                 C11_f = torch.fft.fftn(C11re + 1j * C11im, norm='ortho', dim=(-3))
