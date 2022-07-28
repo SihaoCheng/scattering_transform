@@ -17,7 +17,7 @@ from scattering.scale_transforms import FourierScale
 # synthesis
 def synthesis(
     estimator_name, target, image_init=None, image_ref=None, image_b=None,
-    J=None, L=4, M=None, N=None, l_oversampling=1,
+    J=None, L=4, M=None, N=None, l_oversampling=1, frequency_factor=1,
     mode='image', optim_algorithm='LBFGS', steps=300, learning_rate=0.2,
     device='gpu', wavelets='morlet', seed=None,
     if_large_batch=False,
@@ -84,12 +84,12 @@ Use * or + to connect more than one condition.
                 if image_b is None:
                     print('should provide a valid image_b.')
                 else:
-                    st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b)
+                    st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b)
             else:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=target, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref=target, )
         if mode=='estimator' or ensemble:
             if image_ref is None:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, )
                 if target_full is None:
                     temp = target
                 else:
@@ -99,7 +99,7 @@ Use * or + to connect more than one condition.
                     else: st_calc.add_synthesis_P00(P00=reference_P00)
                 else: st_calc.add_synthesis_P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, wavelets=wavelets, device=device, ref=image_ref, )
+                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref=image_ref, )
         if estimator_name=='s_mean_iso':
             func_s = lambda x: st_calc.scattering_coef(x, flatten=True)['for_synthesis_iso']
         if estimator_name=='s_mean':
