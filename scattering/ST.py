@@ -624,7 +624,7 @@ class Scattering2d(object):
         select_2_iso = j1 <= j2
         invalid = j1[None,select_2_iso]*0-1
         index_2_iso = torch.cat(
-            (j1[None,select_2_iso], j2[None,select_2_iso], invalid,
+            (j1[None,select_2_iso], j2[None,select_2_iso], invalid, 
              invalid,               l2[None,select_2_iso], invalid),
             dim=0)
         # three-scale coef
@@ -663,7 +663,7 @@ class Scattering2d(object):
             ), dim=-1)
             index_for_synthesis_iso = torch.cat((
                 index_mean,  index_1_iso, index_1_iso, # mean, P00, S1
-                index_2_iso, index_2_iso, index_3_iso, index_3_iso, # C01re, C01im, C11re, C11im
+                index_2_iso,         index_3_iso, # C01re, C11re,
             ), dim=-1)
             # label different coef
             index_type = torch.cat((
@@ -672,7 +672,7 @@ class Scattering2d(object):
             ), dim=-1)
             index_type_iso = torch.cat((
                 index_mean[:1,:]*0,    index_1_iso[:1,:]*0+1, index_1_iso[:1,:]*0+2,
-                index_2_iso[:1,:]*0+3, index_2_iso[:1,:]*0+4, index_3_iso[:1,:]*0+5, index_3_iso[:1,:]*0+6
+                index_2_iso[:1,:]*0+3,                 index_3_iso[:1,:]*0+5,
             ), dim=-1)
             # add P11 to the coef set
             if normalization=='P11':
@@ -691,9 +691,9 @@ class Scattering2d(object):
                 index_mean,  index_mean, # mean_a, mean_b,
                 index_1_iso, index_1_iso, index_1_iso, index_1_iso, # P00_a, P00_b, C00re, C00im
                 index_2_iso, index_2_iso, index_2_iso, index_2_iso, # C01re
-                index_2_iso, index_2_iso, index_2_iso, index_2_iso, # C01im
+#                 index_2_iso, index_2_iso, index_2_iso, index_2_iso, # C01im
                 index_3_iso, index_3_iso, index_3_iso, index_3_iso, # C11re
-                index_3_iso, index_3_iso, index_3_iso, index_3_iso, # C11im
+#                 index_3_iso, index_3_iso, index_3_iso, index_3_iso, # C11im
             ), dim=-1)
             # label different coef
             index_type = torch.cat((
@@ -709,9 +709,9 @@ class Scattering2d(object):
                 index_mean[:1,:]*0, index_mean[:1,:]*0+1, 
                 index_1_iso[:1,:]*0+2,  index_1_iso[:1,:]*0+3, index_1_iso[:1,:]*0+4, index_1_iso[:1,:]*0+5,
                 index_2_iso[:1,:]*0+6,  index_2_iso[:1,:]*0+7, index_2_iso[:1,:]*0+8, index_2_iso[:1,:]*0+9,
-                index_2_iso[:1,:]*0+10, index_2_iso[:1,:]*0+11,index_2_iso[:1,:]*0+12,index_2_iso[:1,:]*0+13,
+#                 index_2_iso[:1,:]*0+10, index_2_iso[:1,:]*0+11,index_2_iso[:1,:]*0+12,index_2_iso[:1,:]*0+13,
                 index_3_iso[:1,:]*0+14, index_3_iso[:1,:]*0+15,index_3_iso[:1,:]*0+16,index_3_iso[:1,:]*0+17,
-                index_3_iso[:1,:]*0+18, index_3_iso[:1,:]*0+19,index_3_iso[:1,:]*0+20,index_3_iso[:1,:]*0+21,
+#                 index_3_iso[:1,:]*0+18, index_3_iso[:1,:]*0+19,index_3_iso[:1,:]*0+20,index_3_iso[:1,:]*0+21,
             ), dim=-1)
         # combine index and the label of coef type 
         index_for_synthesis     = torch.cat((index_type,     index_for_synthesis),     dim=0)
@@ -1052,10 +1052,10 @@ class Scattering2d(object):
         C11_pre_norm = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
         C11 = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
         
-        C01_iso = torch.zeros((N_image,J,J,L), dtype=data_f.dtype)
+        C01_iso = torch.zeros((N_image,J,J,L), dtype=data.dtype)
         P11_iso = torch.zeros((N_image,J,J,L), dtype=data.dtype)
-        C11_pre_norm_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data_f.dtype)
-        C11_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data_f.dtype)
+        C11_pre_norm_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data.dtype)
+        C11_iso = torch.zeros((N_image,J,J,J,L,L), dtype=data.dtype)
         
         # move torch tensors to gpu device, if required
         if self.device=='gpu':
@@ -1163,11 +1163,11 @@ class Scattering2d(object):
         S1_iso  = S1.mean(-1)
         for l1 in range(L):
             for l2 in range(L):
-                C01_iso[...,(l2-l1)%L] += C01[...,l1,l2]
+                C01_iso[...,(l2-l1)%L] += C01[...,l1,l2].real
                 P11_iso[...,(l2-l1)%L] += P11[...,l1,l2]
                 for l3 in range(L):
-                    C11_pre_norm_iso[...,(l2-l1)%L,(l3-l1)%L]+=C11_pre_norm[...,l1,l2,l3]
-                    C11_iso[...,(l2-l1)%L,(l3-l1)%L] += C11[...,l1,l2,l3]
+                    C11_pre_norm_iso[...,(l2-l1)%L,(l3-l1)%L]+=C11_pre_norm[...,l1,l2,l3].real
+                    C11_iso[...,(l2-l1)%L,(l3-l1)%L] += C11[...,l1,l2,l3].real
         C01_iso /= L; P11_iso /= L; C11_pre_norm_iso /= L; C11_iso /= L
         
         
@@ -1189,10 +1189,10 @@ class Scattering2d(object):
             (data.mean((-2,-1))/data.std((-2,-1)))[:,None],
             P00_iso.log(), 
             S1_iso.log(),
-            C01_iso[:,select_and_index['select_2_iso']].real, 
-            C01_iso[:,select_and_index['select_2_iso']].imag, 
-            C11_iso[:,select_and_index['select_3_iso']].real, 
-            C11_iso[:,select_and_index['select_3_iso']].imag
+            C01_iso[:,select_and_index['select_2_iso']], 
+#             C01_iso[:,select_and_index['select_2_iso']].imag, 
+            C11_iso[:,select_and_index['select_3_iso']], 
+#             C11_iso[:,select_and_index['select_3_iso']].imag
         ), dim=-1)
         if normalization=='P11':
             for_synthesis     = torch.cat(
@@ -1254,11 +1254,11 @@ class Scattering2d(object):
         C11    = torch.zeros((N_image,4,J,J,J,L,L,L), dtype=data_a_f.dtype) + np.nan
         Corr11 = torch.zeros((N_image,4,J,J,J,L,L,L), dtype=data_a_f.dtype) + np.nan
         
-        C01_iso = torch.zeros((N_image,4,J,J,L), dtype=data_a_f.dtype)
+        C01_iso = torch.zeros((N_image,4,J,J,L), dtype=data_a.dtype)
         P11_a_iso = torch.zeros((N_image,J,J,L), dtype=data_a.dtype)
         P11_b_iso = torch.zeros((N_image,J,J,L), dtype=data_a.dtype)
-        C11_iso = torch.zeros((N_image,4,J,J,J,L,L), dtype=data_a_f.dtype)
-        Corr11_iso= torch.zeros((N_image,4,J,J,J,L,L), dtype=data_a_f.dtype)
+        C11_iso = torch.zeros((N_image,4,J,J,J,L,L), dtype=data_a.dtype)
+        Corr11_iso= torch.zeros((N_image,4,J,J,J,L,L), dtype=data_a.dtype)
         
         # move torch tensors to gpu device, if required
         if self.device=='gpu':
@@ -1444,12 +1444,12 @@ class Scattering2d(object):
         # S1_iso  = S1.mean(-1)
         for l1 in range(L):
             for l2 in range(L):
-                C01_iso[...,(l2-l1)%L] += C01[...,l1,l2]
+                C01_iso[...,(l2-l1)%L] += C01[...,l1,l2].real
                 P11_a_iso[...,(l2-l1)%L] += P11_a[...,l1,l2]
                 P11_b_iso[...,(l2-l1)%L] += P11_b[...,l1,l2]
                 for l3 in range(L):
-                    C11_iso   [...,(l2-l1)%L,(l3-l1)%L] +=    C11[...,l1,l2,l3]
-                    Corr11_iso[...,(l2-l1)%L,(l3-l1)%L] += Corr11[...,l1,l2,l3]
+                    C11_iso   [...,(l2-l1)%L,(l3-l1)%L] +=    C11[...,l1,l2,l3].real
+                    Corr11_iso[...,(l2-l1)%L,(l3-l1)%L] += Corr11[...,l1,l2,l3].real
         C01_iso /= L; P11_a_iso /= L; P11_b_iso /= L; C11_iso /= L; Corr11_iso /= L
         
         # generate single, flattened data vector for_synthesis
@@ -1476,10 +1476,10 @@ class Scattering2d(object):
             P00_b_iso.log(), 
             Corr00_iso.real, 
             Corr00_iso.imag,
-            C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)).real, 
-            C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)).imag, 
-            Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)).real, 
-            Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)).imag
+            C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)), 
+#             C01_iso[:,:,select_and_index['select_2_iso']].reshape((N_image, -1)).imag, 
+            Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)), 
+#             Corr11_iso[:,:,select_and_index['select_3_iso']].reshape((N_image, -1)).imag
         ), dim=-1)
             
         return {'var_a': data_a.var((-2,-1)), 'mean_a': data_a.mean((-2,-1)),
