@@ -554,38 +554,38 @@ def modify_angular(s_cov_set, factor, C01=False, C11=False, keep_para=False):
                 s_cov[:,index_type==3].reshape(N_img,-1,L) - 
                 s_cov[:,index_type==3].reshape(N_img,-1,L)[:,:,0:1]
             ).reshape(N_img,-1) * factor
-            s_cov[:,index_type==4] += (
-                s_cov[:,index_type==4].reshape(N_img,-1,L) - 
-                s_cov[:,index_type==4].reshape(N_img,-1,L)[:,:,0:1]
-            ).reshape(N_img,-1) * factor
+#             s_cov[:,index_type==4] += (
+#                 s_cov[:,index_type==4].reshape(N_img,-1,L) - 
+#                 s_cov[:,index_type==4].reshape(N_img,-1,L)[:,:,0:1]
+#             ).reshape(N_img,-1) * factor
         if C11:
             s_cov[:,index_type==5] += (
                 s_cov[:,index_type==5].reshape(N_img,-1,L,L) - 
                 s_cov[:,index_type==5].reshape(N_img,-1,L,L)[:,:,0:1,0:1]
             ).reshape(N_img,-1) * factor
-            s_cov[:,index_type==6] += (
-                s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
-                s_cov[:,index_type==6].reshape(N_img,-1,L,L)[:,:,0:1,0:1]
-            ).reshape(N_img,-1) * factor
+#             s_cov[:,index_type==6] += (
+#                 s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
+#                 s_cov[:,index_type==6].reshape(N_img,-1,L,L)[:,:,0:1,0:1]
+#             ).reshape(N_img,-1) * factor
     else:
         if C01:
             s_cov[:,index_type==3] += (
                 s_cov[:,index_type==3].reshape(N_img,-1,L) - 
                 s_cov[:,index_type==3].reshape(N_img,-1,L).mean(-1)[:,:,None]
             ).reshape(N_img,-1) * factor
-            s_cov[:,index_type==4] += (
-                s_cov[:,index_type==4].reshape(N_img,-1,L) - 
-                s_cov[:,index_type==4].reshape(N_img,-1,L).mean(-1)[:,:,None]
-            ).reshape(N_img,-1) * factor
+#             s_cov[:,index_type==4] += (
+#                 s_cov[:,index_type==4].reshape(N_img,-1,L) - 
+#                 s_cov[:,index_type==4].reshape(N_img,-1,L).mean(-1)[:,:,None]
+#             ).reshape(N_img,-1) * factor
         if C11:
             s_cov[:,index_type==5] += (
                 s_cov[:,index_type==5].reshape(N_img,-1,L,L) - 
                 s_cov[:,index_type==5].reshape(N_img,-1,L,L).mean((-2,-1))[:,:,None,None]
             ).reshape(N_img,-1) * factor
-            s_cov[:,index_type==6] += (
-                s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
-                s_cov[:,index_type==6].reshape(N_img,-1,L,L).mean((-2,-1))[:,:,None,None]
-            ).reshape(N_img,-1) * factor
+#             s_cov[:,index_type==6] += (
+#                 s_cov[:,index_type==6].reshape(N_img,-1,L,L) - 
+#                 s_cov[:,index_type==6].reshape(N_img,-1,L,L).mean((-2,-1))[:,:,None,None]
+#             ).reshape(N_img,-1) * factor
     return s_cov
 
 # show three panel plots
