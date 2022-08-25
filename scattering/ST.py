@@ -1660,8 +1660,8 @@ class Bispectrum_Calculator(object):
             dtype=torch.float32
         )
         for i1 in range(len(self.k_range)-1):
-            for i2 in range(i1+1):
-                for i3 in range(i2+1):
+            for i2 in range(i1,len(self.k_range)-1):
+                for i3 in range(i2,len(self.k_range)-1):
                     if True: #i2 + i3 >= i1 :
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean()
@@ -1706,8 +1706,8 @@ class Bispectrum_Calculator(object):
             
         conv_std = conv.std((-1,-2))
         for i1 in range(len(self.k_range)-1):
-            for i2 in range(i1+1):
-                for i3 in range(i2+1):
+            for i2 in range(i1,len(self.k_range)-1):
+                for i3 in range(i2,len(self.k_range)-1):
                     if True: #i2 + i3 >= i1 :
                         B = conv[i1] * conv[i2] * conv[i3]
                         B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
