@@ -1648,7 +1648,7 @@ class Bispectrum_Calculator(object):
         
         self.k_filters = np.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
-            self.k_filters[i,:,:] = np.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
+            self.k_filters[i,:,:] = np.fft.ifftshift((d<k_range[i+1]) * (d>=k_range[i]))
         self.k_filters_torch = torch.from_numpy(self.k_filters)
         refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1)).real
         
@@ -1663,9 +1663,7 @@ class Bispectrum_Calculator(object):
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
-                    if self.bin_type=='linear': criteria=(i1 + i2 >= i3)
-                    else: criteria=True
-                    if criteria:
+                    if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean()
         if device=='gpu':
@@ -1711,9 +1709,7 @@ class Bispectrum_Calculator(object):
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
-                    if self.bin_type=='linear': criteria=(i1 + i2 >= i3)
-                    else: criteria=True
-                    if criteria:
+                    if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
                         B = conv[i1] * conv[i2] * conv[i3]
                         B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
                             conv_std[i1] / conv_std[i2] / conv_std[i3]
