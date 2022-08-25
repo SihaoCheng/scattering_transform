@@ -1642,6 +1642,7 @@ class Bispectrum_Calculator(object):
         self.k_range = k_range
         self.M = M
         self.N = N
+        self.bin_type=bin_type
         X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
         d = ((X-M//2)**2+(Y-N//2)**2)**0.5
         
@@ -1662,7 +1663,9 @@ class Bispectrum_Calculator(object):
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
-                    if True: #i2 + i3 >= i1 :
+                    if self.bin_type=='linear': criteria=(i1 + i2 >= i3)
+                    else: criteria=True
+                    if criteria:
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean()
         if device=='gpu':
@@ -1708,7 +1711,9 @@ class Bispectrum_Calculator(object):
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
-                    if True: #i2 + i3 >= i1 :
+                    if self.bin_type=='linear': criteria=(i1 + i2 >= i3)
+                    else: criteria=True
+                    if criteria:
                         B = conv[i1] * conv[i2] * conv[i3]
                         B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
                             conv_std[i1] / conv_std[i2] / conv_std[i3]
