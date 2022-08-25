@@ -1642,7 +1642,7 @@ class Bispectrum_Calculator(object):
         self.k_range = k_range
         self.M = M
         self.N = N
-        self.bin_type=bin_type
+        self.bin_type = bin_type
         X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
         d = ((X-M//2)**2+(Y-N//2)**2)**0.5
         
