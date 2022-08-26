@@ -1550,9 +1550,9 @@ class Trispectrum_Calculator(object):
         self.device = device
         if k_range is None:
             if bin_type=='linear':
-                k_range = np.linspace(1, M/2*1.4, bins+1) # linear binning
+                k_range = np.linspace(0, M/2*1.415, bins+1) # linear binning
             if bin_type=='log':
-                k_range = np.logspace(0, np.log10(M/2*1.4), bins+1) # log binning
+                k_range = np.logspace(0, np.log10(M/2*1.415), bins+1) # log binning
 #         k_range = np.concatenate((np.array([0]), k_range), axis=0)
         self.k_range = k_range
         self.M = M
@@ -1575,10 +1575,10 @@ class Trispectrum_Calculator(object):
             dtype=torch.float32
         )
         for i1 in range(len(self.k_range)-1):
-            for i2 in range(i1+1):
-                for i3 in range(i2+1):
-                    for i4 in range(i3+1):
-                        if True: #i2 + i3 >= i1 :
+            for i2 in range(i1,len(self.k_range)-1):
+                for i3 in range(i2,len(self.k_range)-1):
+                    for i4 in range(i3,len(self.k_range)-1):
+                        if self.k_range[i1+1] + self.k_range[i2+1] + self.k_range[i3+1] > self.k_range[i4]:
                             self.select[i1, i2, i3, i4] = True
                             self.T_ref_array[i1, i2, i3, i4] = (refs[i1] * refs[i2] * refs[i3] * refs[i4]).mean()
         if device=='gpu':
@@ -1615,10 +1615,10 @@ class Trispectrum_Calculator(object):
             ).real
         conv_std = conv.std((-1,-2))
         for i1 in range(len(self.k_range)-1):
-            for i2 in range(i1+1):
-                for i3 in range(i2+1):
-                    for i4 in range(i3+1):
-                        if True: #i2 + i3 >= i1 :
+            for i2 in range(i1,len(self.k_range)-1):
+                for i3 in range(i2,len(self.k_range)-1):
+                    for i4 in range(i3,len(self.k_range)-1):
+                        if self.k_range[i1+1] + self.k_range[i2+1] + self.k_range[i3+1] > self.k_range[i4]:
                             T = conv[i1] * conv[i2] * conv[i3] * conv[i4]
                             T_array[:, i1, i2, i3, i4] = T.mean((-2,-1)) / \
                                 conv_std[i1] / conv_std[i2] / conv_std[i3] / conv_std[i4]
@@ -1635,7 +1635,7 @@ class Bispectrum_Calculator(object):
         self.device = device
         if k_range is None:
             if bin_type=='linear':
-                k_range = np.linspace(1, M/2*1.415, bins+1) # linear binning
+                k_range = np.linspace(0, M/2*1.415, bins+1) # linear binning
             if bin_type=='log':
                 k_range = np.logspace(0, np.log10(M/2*1.415), bins+1) # log binning
 #         k_range = np.concatenate((np.array([0]), k_range), axis=0)
