@@ -938,6 +938,7 @@ class Scattering2d(object):
     def scattering_cov(
         self, data, if_large_batch=False, C11_criteria=None, 
         use_ref=False, normalization='P00', remove_edge=False, 
+        pseudo_coef=1,
     ):
         '''
         Calculates the scattering correlations for a batch of images, including:
@@ -1084,6 +1085,8 @@ class Scattering2d(object):
             edge_mask = 1
         P00 = (I1**2 * edge_mask).mean((-2,-1))
         S1  = (I1 * edge_mask).mean((-2,-1))
+        if pseudo_coef != 1:
+            I1 = I1**pseudo_coef
         
         # calculate the covariance and correlations of the scattering fields
         # only use the low-k Fourier coefs when calculating large-j scattering coefs.
@@ -1109,14 +1112,14 @@ class Scattering2d(object):
                 ).mean((-2,-1)) * fft_factor
                 if use_ref:
                     if normalization=='P11':
-                        norm_factor_C01 = (ref_P00[:,None,j3,:] * ref_P11[:,j2,j3,:,:])**0.5
+                        norm_factor_C01 = (ref_P00[:,None,j3,:] * ref_P11[:,j2,j3,:,:]**pseudo_coef)**0.5
                     if normalization=='P00':
-                        norm_factor_C01 = (ref_P00[:,None,j3,:] * ref_P00[:,j2,:,None])**0.5
+                        norm_factor_C01 = (ref_P00[:,None,j3,:] * ref_P00[:,j2,:,None]**pseudo_coef)**0.5
                 else:
                     if normalization=='P11':
-                        norm_factor_C01 = (P00[:,None,j3,:] * P11_temp)**0.5
+                        norm_factor_C01 = (P00[:,None,j3,:] * P11_temp**pseudo_coef)**0.5
                     if normalization=='P00':
-                        norm_factor_C01 = (P00[:,None,j3,:] * P00[:,j2,:,None])**0.5
+                        norm_factor_C01 = (P00[:,None,j3,:] * P00[:,j2,:,None]**pseudo_coef)**0.5
                 C01[:,j2,j3,:,:] = (
                     data_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
@@ -1150,14 +1153,14 @@ class Scattering2d(object):
             #.view(N_image,J,1,1,L,1,1) * .view(N_image,1,J,1,1,L,1)
             C11 = C11_pre_norm / (
                 P[:,:,None,None,:,None,None] * P[:,None,:,None,None,:,None]
-            )**0.5
+            )**(0.5*pseudo_coef)
         if normalization=='P11':
             if use_ref: P = ref_P11
             else: P = P11
             #.view(N_image,J,1,J,L,1,L) * .view(N_image,1,J,J,1,L,L)
             C11 = C11_pre_norm / (
                 P[:,:,None,:,:,None,:] * P[:,None,:,:,None,:,:]
-            )**0.5
+            )**(0.5*pseudo_coef)
         # average over l1 to obtain simple isotropic statistics
         P00_iso = P00.mean(-1)
         S1_iso  = S1.mean(-1)
