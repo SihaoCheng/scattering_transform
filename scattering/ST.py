@@ -1123,7 +1123,7 @@ class Scattering2d(object):
                 C01[:,j2,j3,:,:] = (
                     data_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01
                 for j1 in range(0, j2+1):
                     if eval(C11_criteria):
@@ -1348,22 +1348,22 @@ class Scattering2d(object):
                 C01[:,0,j2,j3,:,:] = (
                     data_a_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_a_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01_a
                 C01[:,1,j2,j3,:,:] = (
                     data_b_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_b_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01_b
                 C01[:,2,j2,j3,:,:] = (
                     data_a_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_b_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01_ab
                 C01[:,3,j2,j3,:,:] = (
                     data_b_f_small.view(N_image,1,1,M3,N3) * 
                     torch.conj(I1_a_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                    wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01_ba
                 for j1 in range(0, j2+1):
                     if eval(C11_criteria):
