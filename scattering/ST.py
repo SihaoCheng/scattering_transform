@@ -1691,16 +1691,10 @@ class Bispectrum_Calculator(object):
             B_array = B_array.cuda()
         
         image_f = torch.fft.fftn(image, dim=(-2,-1))
-        if normalization=='image':
-            conv = torch.fft.ifftn(
-                image_f[None,...] * self.k_filters_torch[:,None,...],
-                dim=(-2,-1)
-            ).real
-        if normalization=='dirac':
-            conv = torch.fft.ifftn(
-                image_f[None,...]*0 + self.k_filters_torch[:,None,...],
-                dim=(-2,-1)
-            ).real
+        conv = torch.fft.ifftn(
+            image_f[None,...] * self.k_filters_torch[:,None,...],
+            dim=(-2,-1)
+        ).real
             
 #         if remove_edge: 
 #             edge_mask = get_edge_masks(self.M, self.N, )self.edge_masks[:,None,:,:]
@@ -1714,9 +1708,14 @@ class Bispectrum_Calculator(object):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
                         B = conv[i1] * conv[i2] * conv[i3]
-                        B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                            conv_std[i1] / conv_std[i2] / conv_std[i3]
-                        # *1e8 # / self.B_ref_array[k1, k2, k3]
+                        if normalization=='image':
+                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
+                                conv_std[i1] / conv_std[i2] / conv_std[i3]
+                        elif normalization=='dirac':
+                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / self.B_ref_array[k1, k2, k3]
+                        elif normalization=='both':
+                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
+                                conv_std[i1] / conv_std[i2] / conv_std[i3] / self.B_ref_array[k1, k2, k3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
     
