@@ -1653,7 +1653,7 @@ class Bispectrum_Calculator(object):
         for i in range(len(k_range)-1):
             self.k_filters[i,:,:] = np.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
         self.k_filters_torch = torch.from_numpy(self.k_filters)
-        refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1)).real
+        refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1))
         
         self.select = torch.zeros(
             (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
@@ -1668,7 +1668,7 @@ class Bispectrum_Calculator(object):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
                         self.select[i1, i2, i3] = True
-                        self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean()
+                        self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean().real
         if device=='gpu':
             self.k_filters_torch = self.k_filters_torch.cuda()
             self.select = self.select.cuda()
