@@ -1712,10 +1712,10 @@ class Bispectrum_Calculator(object):
                             B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
                                 conv_std[i1] / conv_std[i2] / conv_std[i3]
                         elif normalization=='dirac':
-                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / self.B_ref_array[k1, k2, k3]
+                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / self.B_ref_array[i1, i2, i3]
                         elif normalization=='both':
                             B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                                conv_std[i1] / conv_std[i2] / conv_std[i3] / self.B_ref_array[k1, k2, k3]
+                                conv_std[i1] / conv_std[i2] / conv_std[i3] / self.B_ref_array[i1, i2, i3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
     
