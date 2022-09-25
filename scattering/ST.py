@@ -1711,16 +1711,14 @@ class Bispectrum_Calculator(object):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
-                        B = conv[i1] * conv[i2] * conv[i3]
+                        B = (conv[i1] * conv[i2] * conv[i3]).mean((-2,-1)).real
                         if normalization=='image':
-                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                                (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
+                            B_array[:, i1, i2, i3] = B / (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
 #                                 conv_std[i1] / conv_std[i2] / conv_std[i3]
                         elif normalization=='dirac':
-                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / self.B_ref_array[i1, i2, i3]
+                            B_array[:, i1, i2, i3] = B / self.B_ref_array[i1, i2, i3]
                         elif normalization=='both':
-                            B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                                (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5 / self.B_ref_array[i1, i2, i3]
+                            B_array[:, i1, i2, i3] = B / (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5 / self.B_ref_array[i1, i2, i3]
 #                                 conv_std[i1] / conv_std[i2] / conv_std[i3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
