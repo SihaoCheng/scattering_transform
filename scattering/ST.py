@@ -1647,7 +1647,7 @@ class Bispectrum_Calculator(object):
         self.N = N
         self.bin_type = bin_type
         X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
-        d = ((X-M//2)**2+(Y-N//2)**2)**0.5
+        d = torch.from_numpy(((X-M//2)**2+(Y-N//2)**2)**0.5)
         
         self.k_filters = torch.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
