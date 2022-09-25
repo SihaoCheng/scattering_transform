@@ -1700,13 +1700,7 @@ class Bispectrum_Calculator(object):
             dim=(-2,-1)
         )
         
-#         if remove_edge: 
-#             edge_mask = get_edge_masks(self.M, self.N, )self.edge_masks[:,None,:,:]
-#             edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,:,None,None]
-#         else: 
-#             edge_mask = 1
-            
-        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((2,1))
+        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((-2,-1))
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
