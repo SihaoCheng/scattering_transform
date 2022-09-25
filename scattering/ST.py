@@ -1649,11 +1649,12 @@ class Bispectrum_Calculator(object):
         X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
         d = ((X-M//2)**2+(Y-N//2)**2)**0.5
         
-        self.k_filters = np.zeros((len(k_range)-1, M, N), dtype=bool)
+        self.k_filters = torch.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
-            self.k_filters[i,:,:] = np.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
-        self.k_filters_torch = torch.from_numpy(self.k_filters)
-        refs = torch.fft.ifftn(self.k_filters_torch, dim=(-2,-1), norm='forward')
+            self.k_filters[i,:,:] = torch.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
+#         self.k_filters_torch = torch.from_numpy(self.k_filters)
+        
+        self.k_filters_if = torch.fft.ifftn(self.k_filters, dim=(-2,-1))
         
         self.select = torch.zeros(
             (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
@@ -1668,9 +1669,12 @@ class Bispectrum_Calculator(object):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
                         self.select[i1, i2, i3] = True
-                        self.B_ref_array[i1, i2, i3] = (refs[i1] * refs[i2] * refs[i3]).mean().real
+                        self.B_ref_array[i1, i2, i3] = (
+                            self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
+                        ).mean().real
         if device=='gpu':
-            self.k_filters_torch = self.k_filters_torch.cuda()
+            self.k_filters = self.k_filters.cuda()
+            self.k_filters_if = self.k_filters_if.cuda()
             self.select = self.select.cuda()
             self.B_ref_array = self.B_ref_array.cuda()
     
@@ -1692,17 +1696,17 @@ class Bispectrum_Calculator(object):
         
         image_f = torch.fft.fftn(image, dim=(-2,-1))
         conv = torch.fft.ifftn(
-            image_f[None,...] * self.k_filters_torch[:,None,...],
+            image_f[None,...] * self.k_filters[:,None,...],
             dim=(-2,-1)
-        ).real
-            
+        )
+        
 #         if remove_edge: 
 #             edge_mask = get_edge_masks(self.M, self.N, )self.edge_masks[:,None,:,:]
 #             edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,:,None,None]
 #         else: 
 #             edge_mask = 1
             
-        conv_std = conv.std((-1,-2))
+        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((2,1))
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
@@ -1710,12 +1714,14 @@ class Bispectrum_Calculator(object):
                         B = conv[i1] * conv[i2] * conv[i3]
                         if normalization=='image':
                             B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                                conv_std[i1] / conv_std[i2] / conv_std[i3]
+                                (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
+#                                 conv_std[i1] / conv_std[i2] / conv_std[i3]
                         elif normalization=='dirac':
                             B_array[:, i1, i2, i3] = B.mean((-2,-1)) / self.B_ref_array[i1, i2, i3]
                         elif normalization=='both':
                             B_array[:, i1, i2, i3] = B.mean((-2,-1)) / \
-                                conv_std[i1] / conv_std[i2] / conv_std[i3] / self.B_ref_array[i1, i2, i3]
+                                (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5 / self.B_ref_array[i1, i2, i3]
+#                                 conv_std[i1] / conv_std[i2] / conv_std[i3]
         return B_array.reshape(len(image), (len(self.k_range)-1)**3)[:,self.select.flatten()]
 
     
