@@ -1664,7 +1664,7 @@ class Bispectrum_Calculator(object):
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (
                             self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
-                        ).sum().real
+                        ).sum().real * (M*N)**0.5
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
@@ -1689,12 +1689,12 @@ class Bispectrum_Calculator(object):
         
         image_f = torch.fft.fftn(image, dim=(-2,-1), norm='ortho')
         conv = torch.fft.ifftn(image_f[None,...] * self.k_filters[:,None,...], dim=(-2,-1), norm='ortho')
-        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((-2,-1))
+        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).mean((-2,-1))
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3] + 0.5:
-                        B = (conv[i1] * conv[i2] * conv[i3]).sum((-2,-1)).real
+                        B = (conv[i1] * conv[i2] * conv[i3]).sum((-2,-1)).real * (M*N)**0.5
                         if normalization=='image':
                             B_array[:, i1, i2, i3] = B / (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
                         elif normalization=='dirac':
