@@ -1584,7 +1584,7 @@ class Trispectrum_Calculator(object):
                             self.select[i1, i2, i3, i4] = True
                             self.T_ref_array[i1, i2, i3, i4] = (
                                 self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3] * self.k_filters_if[i4]
-                            ).sum().real * (M * N)**2
+                            ).mean().real * (M * N)**4
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
@@ -1616,7 +1616,7 @@ class Trispectrum_Calculator(object):
                 for i3 in range(i2,len(self.k_range)-1):
                     for i4 in range(i3,len(self.k_range)-1):
                         if self.k_range[i1+1] + self.k_range[i2+1] + self.k_range[i3+1] > self.k_range[i4]:
-                            T = (conv[i1] * conv[i2] * conv[i3] * conv[i4]).sum((-2,-1)).real
+                            T = (conv[i1] * conv[i2] * conv[i3] * conv[i4]).mean((-2,-1)).real
                             if normalization=='image':
                                 T_array[:, i1, i2, i3, i4] = T / (P_bin[i1] * P_bin[i2] * P_bin[i3] * P_bin[i4])**0.5
                             elif normalization=='dirac':
@@ -1664,7 +1664,7 @@ class Bispectrum_Calculator(object):
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (
                             self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
-                        ).sum().real * (M * N)**1.5
+                        ).mean().real * (M * N)**3
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
@@ -1694,7 +1694,7 @@ class Bispectrum_Calculator(object):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3] + 0.5:
-                        B = (conv[i1] * conv[i2] * conv[i3]).sum((-2,-1)).real
+                        B = (conv[i1] * conv[i2] * conv[i3]).mean((-2,-1)).real
                         if normalization=='image':
                             B_array[:, i1, i2, i3] = B / (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
                         elif normalization=='dirac':
