@@ -1566,7 +1566,7 @@ class Trispectrum_Calculator(object):
         self.k_filters = torch.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
             self.k_filters[i,:,:] = torch.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
-        self.k_filters_if = torch.fft.ifftn(self.k_filters, dim=(-2,-1))
+        self.k_filters_if = torch.fft.ifftn(self.k_filters, dim=(-2,-1), norm='ortho')
         
         self.select = torch.zeros(
             (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1), 
@@ -1584,7 +1584,7 @@ class Trispectrum_Calculator(object):
                             self.select[i1, i2, i3, i4] = True
                             self.T_ref_array[i1, i2, i3, i4] = (
                                 self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3] * self.k_filters_if[i4]
-                            ).mean().real * (M * N)**4
+                            ).sum().real
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
@@ -1607,16 +1607,16 @@ class Trispectrum_Calculator(object):
             image   = image.cuda()
             T_array = T_array.cuda()
         
-        image_f = torch.fft.fftn(image, dim=(-2,-1))
-        conv = torch.fft.ifftn(image_f[None,...] * self.k_filters[:,None,...], dim=(-2,-1))
-        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((-2,-1))
+        image_f = torch.fft.fftn(image, dim=(-2,-1), norm='ortho')
+        conv = torch.fft.ifftn(image_f[None,...] * self.k_filters[:,None,...], dim=(-2,-1), norm='ortho')
+        P_bin = ((conv.abs())**2).sum((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((-2,-1))
 
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     for i4 in range(i3,len(self.k_range)-1):
                         if self.k_range[i1+1] + self.k_range[i2+1] + self.k_range[i3+1] > self.k_range[i4]:
-                            T = (conv[i1] * conv[i2] * conv[i3] * conv[i4]).mean((-2,-1)).real
+                            T = (conv[i1] * conv[i2] * conv[i3] * conv[i4]).sum((-2,-1)).real
                             if normalization=='image':
                                 T_array[:, i1, i2, i3, i4] = T / (P_bin[i1] * P_bin[i2] * P_bin[i3] * P_bin[i4])**0.5
                             elif normalization=='dirac':
@@ -1689,7 +1689,7 @@ class Bispectrum_Calculator(object):
         
         image_f = torch.fft.fftn(image, dim=(-2,-1), norm='ortho')
         conv = torch.fft.ifftn(image_f[None,...] * self.k_filters[:,None,...], dim=(-2,-1), norm='ortho')
-        P_bin = ((conv.abs())**2).mean((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).mean((-2,-1))
+        P_bin = ((conv.abs())**2).sum((-2,-1)) / (self.k_filters_if[:,None,...].abs()**2).sum((-2,-1))
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
