@@ -1667,7 +1667,7 @@ class Bispectrum_Calculator(object):
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
-                    if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3]:
+                    if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3] + 0.5:
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (
                             self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
