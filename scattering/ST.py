@@ -1671,7 +1671,7 @@ class Bispectrum_Calculator(object):
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (
                             self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
-                        ).mean().real / (M * N)**1.5
+                        ).mean().real * (M * N)**1.5
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
