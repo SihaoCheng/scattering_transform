@@ -1566,7 +1566,6 @@ class Trispectrum_Calculator(object):
         self.k_filters = torch.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
             self.k_filters[i,:,:] = torch.fft.ifftshift((d<=k_range[i+1]) * (d>k_range[i]))
-        self.k_filters_torch = torch.from_numpy(self.k_filters)
         self.k_filters_if = torch.fft.ifftn(self.k_filters, dim=(-2,-1))
         
         self.select = torch.zeros(
