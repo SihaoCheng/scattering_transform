@@ -247,12 +247,12 @@ def func_phi4(image):
 def func_phi4_j(image, J):
     cumsum_list = []
     cumsum_list.append(
-        (image**4).mean((-2,-1))
+        (image**4).mean((-2,-1))[...,None]
     )
     for j in range(J):
         subsample_rate = int(max(2**(j-1), 1))
         smoothed_image = smooth(image, j)[:,::subsample_rate,::subsample_rate]
-        cumsum_list.append( (smoothed_image**4).mean((-2,-1)) )
+        cumsum_list.append( (smoothed_image**4).mean((-2,-1))[...,None] )
     return torch.cat((cumsum_list), dim=-1)
 
 
