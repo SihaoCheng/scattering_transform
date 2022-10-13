@@ -31,6 +31,7 @@ def synthesis(
     target_full=None,
     ps=False, ps_bins=None, ps_bin_type='log',
     bi=False, bispectrum_bins=None, bispectrum_bin_type='log',
+    phi4=False, 
     hist=False,
     hist_j=False,
     ensemble=False,
@@ -182,6 +183,10 @@ Use * or + to connect more than one condition.
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
+    # phi4
+    if phi4:
+        def func_phi4(image):
+            return (image**4).mean((-2,-1)) / image.std((-2,-1))**4
     
     def func(image):
         coef_list = []
@@ -191,6 +196,8 @@ Use * or + to connect more than one condition.
             coef_list.append(func_ps(image))
         if bi:
             coef_list.append(func_bi(image))
+        if phi4:
+            coef_list.append(func_phi4(image))
         if hist:
             coef_list.append(func_hist(image))
         if hist_j:
