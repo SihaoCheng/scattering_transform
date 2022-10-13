@@ -206,7 +206,7 @@ Use * or + to connect more than one condition.
     
     # define loss function
     def quadratic_loss(target, model):
-        return ((target - model)**2).mean()*1e8
+        return ((target - model)**2).mean()*1e10
     
     # synthesis
     image_syn = synthesis_general(
