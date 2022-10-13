@@ -31,9 +31,7 @@ def synthesis(
     target_full=None,
     ps=False, ps_bins=None, ps_bin_type='log',
     bi=False, bispectrum_bins=None, bispectrum_bin_type='log',
-    phi4=False, 
-    hist=False,
-    hist_j=False,
+    phi4=False, phi4_j=False, hist=False, hist_j=False,
     ensemble=False,
     N_ensemble=1,
     reference_P00=None,
@@ -194,6 +192,8 @@ Use * or + to connect more than one condition.
             coef_list.append(func_bi(image))
         if phi4:
             coef_list.append(func_phi4(image))
+        if phi4_j:
+            coef_list.append(func_phi4_j(image, J))
         if hist:
             coef_list.append(func_hist(image))
         if hist_j:
