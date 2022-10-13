@@ -186,7 +186,7 @@ Use * or + to connect more than one condition.
     # phi4
     if phi4:
         def func_phi4(image):
-            return ((image**4).mean((-2,-1)) / image.std((-2,-1))**4)[...,None]
+            return (image**4).mean((-2,-1))[...,None]
     
     def func(image):
         coef_list = []
