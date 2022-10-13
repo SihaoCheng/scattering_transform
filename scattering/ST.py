@@ -1553,9 +1553,9 @@ class Trispectrum_Calculator(object):
         self.device = device
         if k_range is None:
             if bin_type=='linear':
-                k_range = np.linspace(0, M/2*1.415/(bins-1)*bins, bins+1) # linear binning
+                k_range = np.linspace(0, M/2*1.415, bins+1) # linear binning
             if bin_type=='log':
-                k_range = np.logspace(0, np.log10(M/2*1.415)/(bins-1)*bins, bins+1) # log binning
+                k_range = np.logspace(0, np.log10(M/2*1.415), bins+1) # log binning
 #         k_range = np.concatenate((np.array([0]), k_range), axis=0)
         self.k_range = k_range
         self.M = M
@@ -1633,9 +1633,9 @@ class Bispectrum_Calculator(object):
         self.device = device
         if k_range is None:
             if bin_type=='linear':
-                k_range = np.linspace(0, M/2*1.415/(bins-1)*bins, bins+1) # linear binning
+                k_range = np.linspace(0, M/2*1.415, bins+1) # linear binning
             if bin_type=='log':
-                k_range = np.logspace(0, np.log10(M/2*1.415)/(bins-1)*bins, bins+1) # log binning
+                k_range = np.logspace(0, np.log10(M/2*1.415), bins+1) # log binning
 #         k_range = np.concatenate((np.array([0]), k_range), axis=0)
         self.k_range = k_range
         self.M = M
@@ -1730,9 +1730,9 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
     
     if k_range is None:
         if bin_type=='linear':
-            k_range = torch.linspace(1, M/2*1.415/(bins-1)*bins, bins+1) # linear binning
+            k_range = torch.linspace(1, M/2*1.415, bins+1) # linear binning
         if bin_type=='log':
-            k_range = torch.logspace(0, np.log10(M/2*1.415)/(bins-1)*bins, bins+1) # log binning
+            k_range = torch.logspace(0, np.log10(M/2*1.415), bins+1) # log binning
 
     power_spectrum = torch.zeros(len(image), len(k_range)-1, dtype=image.dtype)
     if device=='gpu':
