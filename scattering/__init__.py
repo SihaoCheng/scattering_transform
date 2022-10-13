@@ -183,11 +183,7 @@ Use * or + to connect more than one condition.
             bi = bi_calc.forward(image)
             ps, _ = get_power_spectrum(image, bins=bispectrum_bins, bin_type=bispectrum_bin_type)
             return torch.cat(((image.mean((-2,-1))/image.std((-2,-1)))[:,None], ps, bi), axis=-1)
-    # phi4
-    if phi4:
-        def func_phi4(image):
-            return (image**4).mean((-2,-1))[...,None]
-    
+        
     def func(image):
         coef_list = []
         if estimator_name!='':
@@ -243,6 +239,20 @@ def func_hist_j(image, J):
         cumsum_list.append(
             flat_image.sort(dim=-1).values.reshape(len(image),-1,smoothed_image.shape[-2]).mean(-1) / flat_image.std(-1)[:,None]
         )
+    return torch.cat((cumsum_list), dim=-1)
+
+def func_phi4(image):
+    return (image**4).mean((-2,-1))[...,None]
+
+def func_phi4_j(image, J):
+    cumsum_list = []
+    cumsum_list.append(
+        (image**4).mean((-2,-1))
+    )
+    for j in range(J):
+        subsample_rate = int(max(2**(j-1), 1))
+        smoothed_image = smooth(image, j)[:,::subsample_rate,::subsample_rate]
+        cumsum_list.append( (smoothed_image**4).mean((-2,-1)) )
     return torch.cat((cumsum_list), dim=-1)
 
 
