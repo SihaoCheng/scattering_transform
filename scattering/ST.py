@@ -1743,7 +1743,7 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
         power_spectrum = power_spectrum.cuda()
 
     for i in range(len(k_range)-1):
-        select = (k >= k_range[i]) * (k < k_range[i+1])
+        select = (k > k_range[i]) * (k <= k_range[i+1])
         power_spectrum[:,i] = ((modulus**2*select[None,...]).sum((-2,-1))/select.sum()).log()
     return power_spectrum, k_range
 
