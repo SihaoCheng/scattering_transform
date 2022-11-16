@@ -1710,7 +1710,9 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
     get the power spectrum of a given image
     '''
     if type(image) == np.ndarray:
-        image = torch.from_numpy(image)      
+        image = torch.from_numpy(image)    
+    if type(k_range) == np.ndarray:
+        k_range = torch.from_numpy(k_range) 
     if not torch.cuda.is_available(): device='cpu'
     if device=='gpu':
         image = image.cuda()
