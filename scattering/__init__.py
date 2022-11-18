@@ -1014,3 +1014,32 @@ def chunk_model(X, st_calc, nchunks, **kwargs):
              'index_for_synthesis':idx, 'for_synthesis':torch.cat(covs_l)}
     return s_cov    
 
+
+def convolve_by_FFT(field, func_in_Fourier, device='cpu'):
+    '''
+    get the power spectrum of a given image
+    '''
+    if type(field) == np.ndarray:
+        field = torch.from_numpy(field)
+    M, N = field.shape[-2:]
+    field_f = torch.fft.fftn(field, dim=(-2,-1))
+    
+    kx = torch.arange(0,M)
+    ky = torch.arange(0,N)
+    kx_grid, ky_grid = torch.meshgrid(ky, kx, indexing='ij')
+    k_grid = torch.fft.ifftshift( ((kx_grid - M//2)**2 + (ky_grid - N//2)**2)**0.5, dim=(-2,-1))
+    if device=='gpu':
+      k_grid = k_grid.cuda()
+      field_f = field_f.cuda()
+    filter_f = func_in_Fourier( k_grid )
+
+    filter_f_modi = filter_f + 0.
+    filter_f_modi[0,0] = 0
+    # print(filter_f.device, filter_f_modi.device)
+    field_after_conv = torch.fft.ifftn( 
+        field_f * filter_f_modi, dim=(-2,-1)
+    ).real
+
+    # filter_f[0,0] = 1
+
+    return field_after_conv, filter_f, k_grid>0
