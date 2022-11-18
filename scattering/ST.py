@@ -1641,8 +1641,11 @@ class Bispectrum_Calculator(object):
         self.M = M
         self.N = N
         self.bin_type = bin_type
-        X, Y = np.meshgrid(np.arange(M), np.arange(N), indexing='ij')
-        d = torch.from_numpy(((X-M//2)**2+(Y-N//2)**2)**0.5)
+        X = torch.arange(M)[:,None]
+        Y = torch.arange(N)[None,:]
+        Xgrid = X+Y*0
+        Ygrid = X*0+Y
+        d = ((X-M//2)**2+(Y-N//2)**2)**0.5
         
         self.k_filters = torch.zeros((len(k_range)-1, M, N), dtype=bool)
         for i in range(len(k_range)-1):
@@ -1725,9 +1728,10 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
           torch.cat(( modulus[..., M//2:, :N//2], modulus[..., :M//2, :N//2] ), -2)
         ),-1)
     
-    X = torch.arange(0,M)
-    Y = torch.arange(0,N)
-    Ygrid, Xgrid = torch.meshgrid(Y,X, indexing='ij')
+    X = torch.arange(M)[:,None]
+    Y = torch.arange(N)[None,:]
+    Xgrid = X+Y*0
+    Ygrid = X*0+Y
     k = ((Xgrid - M/2)**2 + (Ygrid - N/2)**2)**0.5
     
     if k_range is None:
