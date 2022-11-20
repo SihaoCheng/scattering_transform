@@ -633,9 +633,9 @@ class Scattering2d(object):
             torch.arange(L), torch.arange(L), torch.arange(L), indexing='ij'
         )
         if normalization=='P00' and num_field==1:
-            select_3 = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria)
+            select_3 = (j1 <= j2) * (j2 < j3) * eval(C11_criteria)
         else:
-            select_3 = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria) * ~((l1==l2)*(j1==j2))
+            select_3 = (j1 <= j2) * (j2 < j3) * eval(C11_criteria) * ~((l1==l2)*(j1==j2))
         index_3 = torch.cat(
             (j1[None,select_3], j2[None,select_3], j3[None,select_3],
              l1[None,select_3], l2[None,select_3], l3[None,select_3]),
@@ -646,9 +646,9 @@ class Scattering2d(object):
             torch.arange(L), torch.arange(L), indexing='ij'
         )
         if normalization=='P00' and num_field==1:
-            select_3_iso = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria)
+            select_3_iso = (j1 <= j2) * (j2 < j3) * eval(C11_criteria)
         else:
-            select_3_iso = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria) * ~((l2==0)*(j1==j2))
+            select_3_iso = (j1 <= j2) * (j2 < j3) * eval(C11_criteria) * ~((l2==0)*(j1==j2))
         invalid = j1[None,select_3_iso]*0-1
         index_3_iso = torch.cat(
             (j1[None,select_3_iso], j2[None,select_3_iso], j3[None,select_3_iso],
