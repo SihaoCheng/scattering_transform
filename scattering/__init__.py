@@ -79,17 +79,19 @@ Use * or + to connect more than one condition.
     
     # define calculator and estimator function
     if 's' in estimator_name:
-        if mode=='image' and not ensemble:
-            if '2fields' in estimator_name:
-                if image_b is None:
-                    print('should provide a valid image_b.')
-                else:
-                    st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref_a=target, ref_b=image_b)
-            else:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref=target, )
-        if mode=='estimator' or ensemble:
+        st_calc = Scattering2d(M, N, J, L, device, wavelets, l_oversampling=l_oversampling, frequency_factor=frequency_factor)
+        if mode=='image':
+            if '2fields' not in estimator_name: 
+                st_calc.add_ref(ref=target)
+            else: 
+                if image_b is None: print('should provide a valid image_b.')
+                else: st_calc.add_ref_ab(ref_a=target, ref_b=image_b)
+            if ensemble:
+                ref_P00 = st_calc.ref_scattering_cov['P00']
+                ref_P00_mean = ref_P00.mean(0)[None,:,:]
+                if 'iso' in estimator_name: ref_P00_mean = ref_P00_mean.mean(2)[:,:,None]
+        if mode=='estimator':
             if image_ref is None:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, )
                 if target_full is None:
                     temp = target
                 else:
@@ -99,7 +101,8 @@ Use * or + to connect more than one condition.
                     else: st_calc.add_synthesis_P00(P00=reference_P00)
                 else: st_calc.add_synthesis_P11(temp, 'iso' in estimator_name, C11_criteria)
             else:
-                st_calc = Scattering2d(M, N, J, L, l_oversampling=l_oversampling, frequency_factor=frequency_factor, wavelets=wavelets, device=device, ref=image_ref, )
+                st_calc.add_ref(ref=image_ref)
+
         if estimator_name=='s_mean_iso':
             func_s = lambda x: st_calc.scattering_coef(x, flatten=True)['for_synthesis_iso']
         if estimator_name=='s_mean':
