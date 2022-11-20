@@ -87,9 +87,9 @@ Use * or + to connect more than one condition.
                 if image_b is None: print('should provide a valid image_b.')
                 else: st_calc.add_ref_ab(ref_a=target, ref_b=image_b)
             if ensemble:
-                ref_P00 = st_calc.ref_scattering_cov['P00']
-                ref_P00_mean = ref_P00.mean(0)[None,:,:]
+                ref_P00_mean = st_calc.ref_scattering_cov['P00'].mean(0)[None,:,:]
                 if 'iso' in estimator_name: ref_P00_mean = ref_P00_mean.mean(2)[:,:,None]
+                st_calc.ref_scattering_cov['P00'] = ref_P00_mean
         if mode=='estimator':
             if image_ref is None:
                 if target_full is None:
