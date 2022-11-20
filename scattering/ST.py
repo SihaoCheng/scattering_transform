@@ -613,7 +613,7 @@ class Scattering2d(object):
             torch.arange(J), torch.arange(J), 
             torch.arange(L), torch.arange(L), indexing='ij'
         )
-        select_2 = j1 <= j2
+        select_2 = j1 < j2
         invalid = j1[None,select_2]*0-1
         index_2 = torch.cat(
             (j1[None,select_2], j2[None,select_2], invalid, 
@@ -621,7 +621,7 @@ class Scattering2d(object):
             dim=0)
         # two-scale isotropic coef
         j1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), indexing='ij')
-        select_2_iso = j1 <= j2
+        select_2_iso = j1 < j2
         invalid = j1[None,select_2_iso]*0-1
         index_2_iso = torch.cat(
             (j1[None,select_2_iso], j2[None,select_2_iso], invalid, 
