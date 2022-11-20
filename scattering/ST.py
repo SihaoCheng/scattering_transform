@@ -1104,7 +1104,7 @@ class Scattering2d(object):
                 edge_mask = 1
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
-            for j2 in range(0,j3+1):
+            for j2 in range(0,j3):
                 # [N_image,l2,l3,x,y]
                 P11_temp = (
                     I1_f_small[:,j2].view(N_image,L,1,M3,N3).abs()**2 * 
