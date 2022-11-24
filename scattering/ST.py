@@ -613,7 +613,7 @@ class Scattering2d(object):
             torch.arange(J), torch.arange(J), 
             torch.arange(L), torch.arange(L), indexing='ij'
         )
-        select_2 = j1 < j2
+        select_2 = j1 <= j2
         invalid = j1[None,select_2]*0-1
         index_2 = torch.cat(
             (j1[None,select_2], j2[None,select_2], invalid, 
@@ -621,7 +621,7 @@ class Scattering2d(object):
             dim=0)
         # two-scale isotropic coef
         j1, j2, l2 = torch.meshgrid(torch.arange(J), torch.arange(J), torch.arange(L), indexing='ij')
-        select_2_iso = j1 < j2
+        select_2_iso = j1 <= j2
         invalid = j1[None,select_2_iso]*0-1
         index_2_iso = torch.cat(
             (j1[None,select_2_iso], j2[None,select_2_iso], invalid, 
@@ -1104,7 +1104,7 @@ class Scattering2d(object):
                 edge_mask = 1
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
-            for j2 in range(0,j3):
+            for j2 in range(0,j3+1):
                 # [N_image,l2,l3,x,y]
                 P11_temp = (
                     I1_f_small[:,j2].view(N_image,L,1,M3,N3).abs()**2 * 
@@ -1125,23 +1125,24 @@ class Scattering2d(object):
                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
                     wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01
-                for j1 in range(0, j2+1):
-                    if eval(C11_criteria):
-                        if not if_large_batch:
-                            # [N_image,l1,l2,l3,x,y]
-                            C11_pre_norm[:,j1,j2,j3,:,:,:] = (
-                                I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
-                                torch.conj(I1_f_small[:,j2].view(N_image,1,L,1,M3,N3)) *
-                                wavelet_f3_squared.view(1,1,1,L,M3,N3)
-                            ).mean((-2,-1)) * fft_factor
-                        else:
-                            for l1 in range(L):
-                            # [N_image,l2,l3,x,y]
-                                C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
-                                    I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
-                                    torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                                    wavelet_f3_squared.view(1,1,L,M3,N3)
+                if j2 < j3:
+                    for j1 in range(0, j2+1):
+                        if eval(C11_criteria):
+                            if not if_large_batch:
+                                # [N_image,l1,l2,l3,x,y]
+                                C11_pre_norm[:,j1,j2,j3,:,:,:] = (
+                                    I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
+                                    torch.conj(I1_f_small[:,j2].view(N_image,1,L,1,M3,N3)) *
+                                    wavelet_f3_squared.view(1,1,1,L,M3,N3)
                                 ).mean((-2,-1)) * fft_factor
+                            else:
+                                for l1 in range(L):
+                                # [N_image,l2,l3,x,y]
+                                    C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
+                                        I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
+                                        torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
+                                        wavelet_f3_squared.view(1,1,L,M3,N3)
+                                    ).mean((-2,-1)) * fft_factor
         # define P11 from diagonals of C11
         for j1 in range(J):
             for l1 in range(L):
