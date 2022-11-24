@@ -633,9 +633,9 @@ class Scattering2d(object):
             torch.arange(L), torch.arange(L), torch.arange(L), indexing='ij'
         )
         if normalization=='P00' and num_field==1:
-            select_3 = (j1 <= j2) * (j2 < j3) * eval(C11_criteria)
+            select_3 = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria)
         else:
-            select_3 = (j1 <= j2) * (j2 < j3) * eval(C11_criteria) * ~((l1==l2)*(j1==j2))
+            select_3 = (j1 <= j2) * (j2 <= j3) * eval(C11_criteria) * ~((l1==l2)*(j1==j2))
         index_3 = torch.cat(
             (j1[None,select_3], j2[None,select_3], j3[None,select_3],
              l1[None,select_3], l2[None,select_3], l3[None,select_3]),
