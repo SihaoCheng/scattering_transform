@@ -1104,7 +1104,7 @@ class Scattering2d(object):
                 edge_mask = 1
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
-            for j2 in range(0,j3):
+            for j2 in range(0,j3+1):
                 # [N_image,l2,l3,x,y]
                 P11_temp = (
                     I1_f_small[:,j2].view(N_image,L,1,M3,N3).abs()**2 * 
@@ -1125,7 +1125,7 @@ class Scattering2d(object):
                     torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
                     wavelet_f3.view(1,1,L,M3,N3)
                 ).mean((-2,-1)) * fft_factor / norm_factor_C01
-                if j2 < j3:
+                if j2 <= j3:
                     for j1 in range(0, j2+1):
                         if eval(C11_criteria):
                             if not if_large_batch:
