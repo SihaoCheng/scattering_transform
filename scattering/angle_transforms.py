@@ -110,7 +110,7 @@ class FourierAngle:
         P00_f_flattened = torch.cat([P00_fp.real.reshape(len(s_cov), -1), P00_fp.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_P00 = idx_info[np.isin(cov_type, ['P00']), :]
         # idx_info for S1
-        S1_f_flattened = torch.cat([S1.real.reshape(len(s_cov), -1), S1.imag.reshape(len(s_cov), -1)], dim=-1)
+        S1_f_flattened = torch.cat([S1_fp.real.reshape(len(s_cov), -1), S1_fp.imag.reshape(len(s_cov), -1)], dim=-1)
         idx_info_S1 = idx_info[np.isin(cov_type, ['S1']), :]
         
         # idx_info for C01
