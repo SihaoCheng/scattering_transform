@@ -1628,7 +1628,7 @@ class Trispectrum_Calculator(object):
 
 
 class Bispectrum_Calculator(object):
-    def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu'):
+    def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu', edge=0):
         if not torch.cuda.is_available(): device='cpu'
         # k_range in unit of pixel in Fourier space
         self.device = device
@@ -1661,14 +1661,15 @@ class Bispectrum_Calculator(object):
             (len(self.k_range)-1, len(self.k_range)-1, len(self.k_range)-1),
             dtype=torch.float32
         )
+        self.mask_xy = (Xgrid >= edge) * (Xgrid <= M-edge-1) * (Ygrid >= edge) * (Ygrid <= N-edge-1)
         for i1 in range(len(self.k_range)-1):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3] + 0.5:
                         self.select[i1, i2, i3] = True
                         self.B_ref_array[i1, i2, i3] = (
-                            self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3]
-                        ).sum().real
+                            self.k_filters_if[i1] * self.k_filters_if[i2] * self.k_filters_if[i3] * self.mask_xy
+                        ).sum().real / self.mask_xy.sum() * self.M * self.N
         if device=='gpu':
             self.k_filters = self.k_filters.cuda()
             self.k_filters_if = self.k_filters_if.cuda()
@@ -1698,7 +1699,8 @@ class Bispectrum_Calculator(object):
             for i2 in range(i1,len(self.k_range)-1):
                 for i3 in range(i2,len(self.k_range)-1):
                     if self.k_range[i1+1] + self.k_range[i2+1] > self.k_range[i3] + 0.5:
-                        B = (conv[i1] * conv[i2] * conv[i3]).sum((-2,-1)).real
+                        B = (conv[i1] * conv[i2] * conv[i3] * self.mask_xy[None,None,...]).sum((-2,-1)).real /\
+                            self.mask_xy.sum() * self.M * self.N
                         if normalization=='image':
                             B_array[:, i1, i2, i3] = B / (P_bin[i1] * P_bin[i2] * P_bin[i3])**0.5
                         elif normalization=='dirac':
