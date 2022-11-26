@@ -1722,7 +1722,7 @@ def get_power_spectrum(image, k_range=None, bins=None, bin_type='log', device='g
         image = image.cuda()
             
     M, N = image.shape[-2:]
-    modulus = torch.fft.fftn(image, dim=(-2,-1)).abs()
+    modulus = torch.fft.fftn(image, dim=(-2,-1), norm='ortho').abs()
     
     modulus = torch.cat(
         ( torch.cat(( modulus[..., M//2:, N//2:], modulus[..., :M//2, N//2:] ), -2),
