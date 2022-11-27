@@ -8,8 +8,9 @@ import torch
 import matplotlib.pyplot as plt
 
 from scattering.utils import to_numpy
-from scattering.ST import FiltersSet, Scattering2d, Bispectrum_Calculator, Trispectrum_Calculator, AlphaScattering2d_cov, \
-    get_power_spectrum, reduced_ST
+from scattering.ST import FiltersSet, Scattering2d, \
+    get_power_spectrum, Bispectrum_Calculator, Trispectrum_Calculator, AlphaScattering2d_cov, \
+    reduced_ST
 from scattering.angle_transforms import FourierAngle
 from scattering.scale_transforms import FourierScale
 
