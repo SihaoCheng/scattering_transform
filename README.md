@@ -115,7 +115,7 @@ This `ST.py` module can do the following:
 3. Calculating the phase harmonic correlations, a statistic similar to the scattering transform but enabling non-linear cross-correlation between two signal / fields.
 The code has been optimized for both speed and memory use. Code for 3D cases are in working progress.
 
-For questions or suggestions or comments, please do not hesitate to contact me: s.cheng@jhu.edu
+For questions or suggestions or comments, please do not hesitate to contact me: scheng@ias.edu
 
 ## Install
 Please download (only) the script `ST.py` to one of the system paths. Or, you can download it to any folder and add that folder to system paths: 
