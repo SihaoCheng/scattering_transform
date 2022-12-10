@@ -68,13 +68,13 @@ class FiltersSet(object):
                     self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
                 ).real.astype(dtype_np)
             ) * (self.M * self.N)**0.5
-        if wavelets='gau':
+        if wavelets=='gau':
             phi = torch.from_numpy(
                 self.gabor_2d_mycode(
                     self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
                 ).real.astype(dtype_np)
             ) * (self.M * self.N)**0.5
-        if wavelets='shannon':
+        if wavelets=='shannon':
             phi = torch.from_numpy(
                 self.shannon_2d(
                     M=self.M, N=self.N, kmin = -1, 
