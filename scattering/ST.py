@@ -8,47 +8,91 @@ class FiltersSet(object):
         self.N = N
         self.J = J
         self.L = L
-    
-    # Morlet Wavelets
-    def generate_morlet(self, if_save=False, save_dir=None, precision='single', l_oversampling=1, frequency_factor=1):
-        if precision=='double':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
-        if precision=='single':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float32)
-        for j in range(self.J):
-            for theta in range(self.L):
-                wavelet = self.morlet_2d(
-                    M=self.M, 
-                    N=self.N, 
-                    sigma=0.8 * 2**j / frequency_factor, 
-                    theta=(int(self.L-self.L/2-1)-theta) * np.pi / self.L, 
-                    xi=frequency_factor * 3.0 / 4.0 * np.pi /2**j, 
-                    slant=4.0 / self.L * l_oversampling,
-                )
-                wavelet_Fourier = np.fft.fft2(wavelet)
-                wavelet_Fourier[0,0] = 0
-                if precision=='double':
-                    psi[j, theta] = torch.from_numpy(wavelet_Fourier.real)
-                if precision=='single':
-                    psi[j, theta] = torch.from_numpy(wavelet_Fourier.real.astype(np.float32))
-        if precision=='double':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 0.8 * 2**(self.J-1) / frequency_factor, 0, 0).real
-            ) * (self.M * self.N)**0.5
-        if precision=='single':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 0.8 * 2**(self.J-1) / frequency_factor, 0, 0).real.astype(np.float32)
-            ) * (self.M * self.N)**0.5
         
+    def generate_wavelets(
+        self, if_save=False, save_dir=None, 
+        wavelets='morlet', precision='single', 
+        l_oversampling=1, frequency_factor=1
+    ):
+        # Morlet Wavelets
+        if precision=='double':
+            dtype = torch.float64
+            dtype_np = np.float64
+        if precision=='single':
+            dtype = torch.float32
+            dtype_np = np.float32
+        if precision=='half':
+            dtype = torch.float16
+            dtype_np = np.float16
+
+        psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=dtype)
+        for j in range(self.J):
+            for l in range(self.L):
+                k0 = frequency_factor * 3.0 / 4.0 * np.pi /2**j
+                theta0 = (int(self.L-self.L/2-1)-l) * np.pi / self.L
+                
+                if wavelets=='morlet':
+                    wavelet_spatial = self.morlet_2d(
+                        M=self.M, N=self.N, xi=k0, theta=theta0,
+                        sigma=0.8 * 2**j / frequency_factor, 
+                        slant=4.0 / self.L * l_oversampling,
+                    )
+                    wavelet_Fourier = np.fft.fft2(wavelet_spatial)
+                if wavelets=='BS':
+                    wavelet_Fourier = self.bump_steerable_2d(
+                        M=self.M, N=self.N, k0=k0, theta0=theta0,
+                        L=self.L
+                    )
+                if wavelets=='gau':
+                    wavelet_Fourier = self.gau_steerable_2d(
+                        M=self.M, N=self.N, k0=k0, theta0=theta0,
+                        L=self.L
+                    )
+                if wavelets=='shannon':
+                    wavelet_Fourier = self.shannon_2d(
+                        M=self.M, N=self.N, kmin=k0 / 2**0.5, kmax=k0 * 2**0.5, theta0=theta0,
+                        L=self.L
+                    )
+                wavelet_Fourier[0,0] = 0
+                psi[j, l] = torch.from_numpy(wavelet_Fourier.real.astype(dtype_np))
+                    
+        if wavelets=='morlet':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(
+                    self.M, self.N, 0.8 * 2**(self.J-1) / frequency_factor, 0, 0
+                ).real.astype(dtype_np)
+            ) * (self.M * self.N)**0.5
+        if wavelets=='BS':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(
+                    self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
+                ).real.astype(dtype_np)
+            ) * (self.M * self.N)**0.5
+        if wavelets='gau':
+            phi = torch.from_numpy(
+                self.gabor_2d_mycode(
+                    self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
+                ).real.astype(dtype_np)
+            ) * (self.M * self.N)**0.5
+        if wavelets='shannon':
+            phi = torch.from_numpy(
+                self.shannon_2d(
+                    M=self.M, N=self.N, kmin = -1, 
+                    kmax = frequency_factor * 0.375 * 2 * np.pi / 2**self.J * 2**0.5,
+                    theta0 = 0, L = 0.5
+                )
+            )
+            
         filters_set = {'psi':psi, 'phi':phi}
         if if_save:
             np.save(
-                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
+                save_dir + 'filters_set_M' + str(self.M) + 'N' + str(self.N)
                 + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
                 np.array([{'filters_set': filters_set}])
             )
         return filters_set
-
+    
+    # Morlet Wavelets
     def morlet_2d(self, M, N, sigma, theta, xi, slant=0.5, offset=0, fft_shift=False):
         """
             (from kymatio package) 
@@ -82,7 +126,7 @@ class FiltersSet(object):
         """
         wv = self.gabor_2d_mycode(M, N, sigma, theta, xi, slant, offset, fft_shift)
         wv_modulus = self.gabor_2d_mycode(M, N, sigma, theta, 0, slant, offset, fft_shift)
-        K = np.sum(wv) / np.sum(wv_modulus)
+        K = wv.sum() / wv_modulus.sum()
 
         mor = wv - K * wv_modulus
         return mor
@@ -143,43 +187,6 @@ class FiltersSet(object):
         return gab
     
     # Bump Steerable Wavelet
-    def generate_bump_steerable(self, if_save=False, save_dir=None, precision='single', frequency_factor=1):
-        if precision=='double':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
-        if precision=='single':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float32)
-        for j in range(self.J):
-            for l in range(self.L):
-                wavelet_Fourier = self.bump_steerable_2d(
-                    M=self.M,
-                    N=self.N, 
-                    k0= frequency_factor * 0.375 * 2 * np.pi / 2**j,
-                    theta0=(int(self.L-self.L/2-1)-l) * np.pi / self.L, 
-                    L=self.L
-                )
-                wavelet_Fourier[0,0] = 0
-                if precision=='double':
-                    psi[j, l] = torch.from_numpy(wavelet_Fourier)
-                if precision=='single':
-                    psi[j, l] = torch.from_numpy(wavelet_Fourier.astype(np.float32))
-        if precision=='double':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real
-            ) * (self.M * self.N)**0.5
-        if precision=='single':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real.astype(np.float32)
-            ) * (self.M * self.N)**0.5
-        
-        filters_set = {'psi':psi, 'phi':phi}
-        if if_save:
-            np.save(
-                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
-                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
-                np.array([{'filters_set': filters_set}])
-            )
-        return filters_set
-
     def bump_steerable_2d(self, M, N, k0, theta0, L):
         """
             (from kymatio package) 
@@ -228,43 +235,6 @@ class FiltersSet(object):
         return bump_steerable_fft
 
     # Gaussian Steerable Wavelet
-    def generate_gau_steerable(self, if_save=False, save_dir=None, precision='single', frequency_factor=1):
-        if precision=='double':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float64)
-        if precision=='single':
-            psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.float32)
-        for j in range(self.J):
-            for l in range(self.L):
-                wavelet_Fourier = self.gau_steerable_2d(
-                    M=self.M,
-                    N=self.N, 
-                    k0= frequency_factor * 0.375 * 2 * np.pi / 2**j,
-                    theta0=(int(self.L-self.L/2-1)-l) * np.pi / self.L, 
-                    L=self.L
-                )
-                wavelet_Fourier[0,0] = 0
-                if precision=='double':
-                    psi[j, l] = torch.from_numpy(wavelet_Fourier)
-                if precision=='single':
-                    psi[j, l] = torch.from_numpy(wavelet_Fourier.astype(np.float32))
-        if precision=='double':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real
-            ) * (self.M * self.N)**0.5
-        if precision=='single':
-            phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real.astype(np.float32)
-            ) * (self.M * self.N)**0.5
-        
-        filters_set = {'psi':psi, 'phi':phi}
-        if if_save:
-            np.save(
-                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
-                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
-                np.array([{'filters_set': filters_set}])
-            )
-        return filters_set
-        
     def gau_steerable_2d(self, M, N, k0, theta0, L):
         xx = np.empty((2,2, M, N))
         yy = np.empty((2,2, M, N))
@@ -290,39 +260,6 @@ class FiltersSet(object):
         return gau_steerable_fft
 
     # tophat (Shannon) Wavelet
-    def generate_shannon(self, if_save=False, save_dir=None):
-        psi = torch.zeros((self.J, self.L, self.M, self.N), dtype=torch.bool)
-        for j in range(self.J):
-            for l in range(self.L):
-                wavelet_Fourier = self.shannon_2d(
-                    M=self.M,
-                    N=self.N, 
-                    kmin= frequency_factor * 0.375 * 2 * np.pi / 2**j / 2**0.5,
-                    kmax= frequency_factor * 0.375 * 2 * np.pi / 2**j * 2**0.5,
-                    theta0=(int(self.L-self.L/2-1)-l) * np.pi / self.L, 
-                    L=self.L
-                )
-                wavelet_Fourier[0,0] = False
-                psi[j, l] = torch.from_numpy(wavelet_Fourier)
-        phi = torch.from_numpy(
-            self.shannon_2d(
-                M=self.M,
-                N=self.N, 
-                kmin = -1,
-                kmax = frequency_factor * 0.375 * 2 * np.pi / 2**self.J * 2**0.5,
-                theta0 = 0,
-                L = 0.5
-            )
-        )
-        filters_set = {'psi':psi, 'phi':phi}
-        if if_save:
-            np.save(
-                save_dir + 'filters_set_mycode_M' + str(self.M) + 'N' + str(self.N)
-                + 'J' + str(self.J) + 'L' + str(self.L) + '_' + precision + '.npy', 
-                np.array([{'filters_set': filters_set}])
-            )
-        return filters_set
-    
     def shannon_2d(self, M, N, kmin, kmax, theta0, L):
         xx = np.empty((2,2, M, N))
         yy = np.empty((2,2, M, N))
@@ -354,10 +291,7 @@ class FiltersSet(object):
         for j in range(self.J):
             for l in range(self.L):
                 wavelet_Fourier = self.gau_harmonic_2d(
-                    M=self.M,
-                    N=self.N, 
-                    k0= frequency_factor * 0.375 * 2 * np.pi / 2**j,
-                    l=l,
+                    M=self.M, N=self.N, k0= frequency_factor * 0.375 * 2 * np.pi / 2**j, l=l,
                 )
                 wavelet_Fourier[0,0] = 0
                 if precision=='double':
@@ -367,11 +301,15 @@ class FiltersSet(object):
         # phi
         if precision=='double':
             phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real
+                self.gabor_2d_mycode(
+                    self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
+                ).real.astype(np.float64)
             ) * (self.M * self.N)**0.5
         if precision=='single':
             phi = torch.from_numpy(
-                self.gabor_2d_mycode(self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0).real.astype(np.float32)
+                self.gabor_2d_mycode(
+                    self.M, self.N, 2 * np.pi /(0.702*2**(-0.05)) * 2**(self.J-1) / frequency_factor, 0, 0
+                ).real.astype(np.float32)
             ) * (self.M * self.N)**0.5
         
         filters_set = {'psi':psi, 'phi':phi}
@@ -445,29 +383,18 @@ class Scattering2d(object):
         '''
         if not torch.cuda.is_available(): device='cpu'
         if filters_set is None:
-            if wavelets=='morlet':
-                filters_set = FiltersSet(
-                    M=M, N=N, J=J, L=L,
-                ).generate_morlet(precision=precision, l_oversampling=l_oversampling, frequency_factor=frequency_factor)
-            if wavelets=='BS':
-                filters_set = FiltersSet(
-                    M=M, N=N, J=J, L=L,
-                ).generate_bump_steerable(precision=precision, frequency_factor=frequency_factor)
-            if wavelets=='gau':
-                filters_set = FiltersSet(
-                    M=M, N=N, J=J, L=L,
-                ).generate_gau_steerable(precision=precision, frequency_factor=frequency_factor)
-            if wavelets=='shannon':
-                filters_set = FiltersSet(
-                    M=M, N=N, J=J, L=L, frequency_factor=frequency_factor
-                ).generate_shannon()
+            if wavelets in ['morlet', 'BS', 'gau', 'shannon']:
+                filters_set = FiltersSet(M=M, N=N, J=J, L=L).generate_wavelets(
+                    wavelets=wavelets, precision=precision, 
+                    l_oversampling=l_oversampling, 
+                    frequency_factor=frequency_factor
+                )
             if wavelets=='gau_harmonic':
-                filters_set = FiltersSet(
-                    M=M, N=N, J=J, L=L, frequency_factor=frequency_factor
-                ).generate_gau_harmonic()
+                filters_set = FiltersSet(M=M, N=N, J=J, L=L).generate_gau_harmonic(
+                    precision=precision, frequency_factor=frequency_factor
+                )
             self.M, self.N = M, N
-        else:
-            self.M, self.N = filters_set['psi'][0][0].shape
+        else: self.M, self.N = filters_set['psi'][0][0].shape
         self.J, self.L = J, L
         
         # filters set in arrays
@@ -480,6 +407,7 @@ class Scattering2d(object):
         else:
             self.filters_set = filters_set['psi']
         self.phi = filters_set['phi']
+        
         # weight
         if weight is None:
             self.weight = None
@@ -504,8 +432,7 @@ class Scattering2d(object):
         self.edge_masks = torch.empty((J, self.M, self.N))
         X, Y = torch.meshgrid(torch.arange(self.M), torch.arange(self.N), indexing='ij')
         for j in range(J):
-            self.edge_masks[j] = (X>=2**j*2)*(X<=self.M-2**j*2)*\
-                    (Y>=2**j*2)*(Y<=self.N-2**j*2)
+            self.edge_masks[j] = (X>=2**j*2) * (X<=self.M-2**j*2) * (Y>=2**j*2) * (Y<=self.N-2**j*2)
         
         # device
         self.device = device
