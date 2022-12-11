@@ -56,13 +56,13 @@ Use * or + to connect more than one condition.
                 image_init = np.random.normal(
                     target.mean((-2,-1))[:,None,None],
                     target.std((-2,-1))[:,None,None],
-                    target.shape
+                    (target.shape[0], M, N)
                 )
             else:
                 image_init = np.random.normal(
                     target.mean(),
                     target.std(),
-                    (N_ensemble, target.shape[-2], target.shape[-1])
+                    (N_ensemble, M, N)
                 )
         else:
             if M is None:
