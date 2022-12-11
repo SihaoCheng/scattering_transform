@@ -50,6 +50,8 @@ Use * or + to connect more than one condition.
     if mode=='image':
         _, M, N = target.shape
         print('input_size: ', target.shape)
+    
+    # set initial point of synthesis
     if image_init is None:
         if mode=='image':
             if not ensemble:
@@ -474,6 +476,11 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
     get a gaussian random field with the same power spectrum as the image 'target' (in the 'image' mode),
     or with an assigned power spectrum function 'target' (in the 'func' mode).
     '''
+    
+    fftshift = np.fft.fftshift
+    fft2 = np.fft.fft2
+    ifft2 = np.fft.ifft2
+    
     np.random.seed(seed)
     if mode == 'image':
         N_image = target.shape[0]
@@ -493,7 +500,8 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
         
     gaussian_phase = np.concatenate((
         np.concatenate((
-            random_phase_corners[:,1,None,None], random_phase_left, random_phase_corners[:,2,None,None], -random_phase_left[:,::-1,:]
+            random_phase_corners[:,1,None,None], random_phase_left, 
+            random_phase_corners[:,2,None,None], -random_phase_left[:,::-1,:]
         ),axis=-2),
         np.concatenate((
             np.concatenate((random_phase_top, random_phase_corners[:,0,None,None], -random_phase_top[:,:,::-1]),axis=-1), random_phase,
@@ -502,8 +510,8 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
     ),axis=-1)
 
     if mode == 'image':
-        gaussian_modulus = np.abs(np.fft.fftshift(np.fft.fft2(target)))
-        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus*np.exp(1j*2*np.pi*gaussian_phase)))
+        gaussian_modulus = np.abs(fftshift(fft2(target)))
+        gaussian_field = ifft2(fftshift(gaussian_modulus*np.exp(1j*2*np.pi*gaussian_phase)))
     if mode == 'func':
         X = np.arange(0,M)
         Y = np.arange(0,N)
@@ -511,8 +519,8 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
         R = ((Xgrid-M/2)**2+(Ygrid-N/2)**2)**0.5
         gaussian_modulus = target(R)
         gaussian_modulus[M//2, N//2] = 0
-        gaussian_field = np.fft.ifft2(np.fft.fftshift(gaussian_modulus[None,:,:]*gaussian_phase))
-    data = np.fft.fftshift(np.real(gaussian_field))
+        gaussian_field = ifft2(fftshift(gaussian_modulus[None,:,:]*gaussian_phase))
+    data = fftshift(gaussian_field.real)
     return data
 
 # transforming scattering representation s_cov['for_synthesis_iso']
@@ -633,287 +641,7 @@ def show(image_target, image_syn, hist_range=(-2, 2), hist_bins=50):
         plt.hist(   image_syn[i].flatten(), hist_bins, hist_range, histtype='step', label='synthesized')
         plt.yscale('log'); plt.legend(loc='lower center'); plt.title('histogram')
         plt.show()
-
-# old code for synthesis
-# class model_image(torch.nn.Module):
-#     def __init__(
-#         self, N_realization, M, N, image, 
-#         mean_shift_init=0, power_factor_init=1, image_init=None, device='gpu'
-#     ):
-#         super(model_image, self).__init__()
-
-#         # initialize with GRF of same PS as target image
-#         image_to_train_numpy = np.zeros((N_realization, M, N))
-#         for n_realization in range(N_realization):
-#             image_to_train_numpy[n_realization] = get_random_data(
-#                     image[n_realization,:M,:N] - image[n_realization,:M,:N].mean(), 
-#                     M, N, "image"
-#                 )
-#         image_to_train = (
-#             torch.from_numpy(image_to_train_numpy).reshape(
-#                 N_realization, -1
-#             ) * power_factor_init
-#         ).type(torch.FloatTensor) + image.mean() + mean_shift_init
-#         if image_init is not None:
-#             image_to_train = torch.from_numpy(
-#             image_init.reshape(1,-1)
-#         ).type(torch.FloatTensor)
-#         if device=='gpu':
-#             image_to_train = image_to_train.cuda()
-#         self.param = torch.nn.Parameter( image_to_train )
-
-# def image_synthesis_ST(
-#     image, J, L, 
-#     N_realization=1,
-#     learnable_param_list = [(100, 1e-3)],
-#     other_function = None,
-#     savedir = '',
-#     device='gpu',
-#     coef = 'SC',
-#     random_seed = 987,
-#     wavelets='morlet',
-#     flip = True,
-#     optim_mode='LBFGS',
-#     mean_shift_init=0,
-#     power_factor_init = 1.0,
-#     image_init = None,
-#     low_bound = -0.010,
-#     high_bound = 1,
-#     bi_bins = 10,
-#     SC_use_ref = True,
-# ):
-#     # define parameters
-#     torch.manual_seed(random_seed)
-#     np.random.seed(random_seed)
-#     N_image = image.shape[0]
-#     M = image.shape[1]
-#     N = image.shape[2]
-#     if flip:
-#         flip_factor = 2
-#     else:
-#         flip_factor = 1
-    
-#     # convert image into torch tensor and possibly add reflection padding
-#     image_torch = torch.from_numpy(image).type(torch.FloatTensor)
-#     if flip:
-#         image_flip_torch = torch.cat((
-#             torch.cat((
-#                 image_torch, torch.flip(image_torch,[1])),1),
-#             torch.cat((
-#                 torch.flip(image_torch,[2]), torch.flip(image_torch,[1,2])),1)), 2
-#         )
-#     else:
-#         image_flip_torch = image_torch
-#     if device=='gpu':
-#         image_torch = image_torch.cuda()
-#         image_flip_torch = image_flip_torch.cuda()
         
-#     # define calculators
-#     scattering_calculator = ST_2D(
-#         M*flip_factor, N*flip_factor, J, L, device=device, wavelets=wavelets,
-#         ref=image_flip_torch
-#     )
-#     bispectrum_calculator = Bispectrum_Calculator(
-#         # k_range = np.linspace(1, M/2*1.4, bi_bins), # linear binning
-#         k_range = np.logspace(0,np.log10(M/2*1.4), bi_bins), # log binning
-#         M=M*flip_factor, N=N*flip_factor, 
-#         device=device
-#     )
-
-#     # calculate statistics for target image
-#     target_ST_dict = scattering_calculator.scattering_coef(
-#         image_flip_torch, flatten=True
-#     )
-#     target_ST = target_ST_dict['all_iso']
-    
-#     target_SC_dict = scattering_calculator.scattering_cov(
-#         image_flip_torch, flatten=True
-#     )
-#     target_Cov_all= target_SC_dict['all_iso']
-#     target_bi = bispectrum_calculator.forward(image_flip_torch)
-#     target_mean = image_flip_torch.mean((-2,-1))
-#     target_std  = image_flip_torch.std((-2,-1))
-#     print('# of ST: ', target_ST.shape[-1])
-#     print('# of SC: ', target_Cov_all.shape[-1])
-#     print('# of bi: ', target_bi.shape[-1])
-
-#     # cumulative distribution
-#     target_cumsum0 = image_torch.reshape(N_realization,-1).sort(-1).values
-#     target_cumsum = torch.from_numpy(np.empty((J, N_realization, M*N))).cuda()
-#     for j in range(J):
-#         for n_realization in range(N_realization):
-#             target_cumsum[j, n_realization] = smooth(
-#                 image_torch[n_realization], j
-#             ).flatten().sort().values
-    
-#     if other_function is not None:
-#         target_other_function = other_function(image_flip_torch)
-
-#     # define optimizable model
-#     model_fit = model_image(
-#         N_realization, M, N, image, 
-#         mean_shift_init,
-#         power_factor_init, 
-#         image_init, 
-#         device
-#     )
-
-#     # define statistics and optimize
-#     for learnable_group in range(len(learnable_param_list)):
-#         num_step = learnable_param_list[learnable_group][0]
-#         learning_rate = learnable_param_list[learnable_group][1]
-        
-#         if optim_mode=='Adam':
-#             optimizer = torch.optim.Adam(model_fit.parameters(), lr=learning_rate)
-#         elif optim_mode=='NAdam':
-#             optimizer = torch.optim.NAdam(model_fit.parameters(), lr=learning_rate)
-#         elif optim_mode=='SGD':
-#             optimizer = torch.optim.SGD(model_fit.parameters(), lr=learning_rate)
-#         elif optim_mode=='Adamax':
-#             optimizer = torch.optim.Adamax(model_fit.parameters(), lr=learning_rate)
-#         elif optim_mode=='LBFGS':
-#             optimizer = torch.optim.LBFGS(
-#                 model_fit.parameters(), lr=learning_rate, 
-#                 max_iter=100, max_eval=None, 
-#                 tolerance_grad=1e-09, tolerance_change=1e-09, 
-#                 history_size=20, line_search_fn=None
-#             )
-        
-#         def closure():
-#             optimizer.zero_grad()
-#             # Flipping continuation 
-#             if flip:
-#                 image_param = model_fit.param.reshape(N_realization,M,N)
-#                 image_param_flip = torch.cat((
-#                     torch.cat((
-#                         image_param, torch.flip(image_param,[1])),1),
-#                     torch.cat((
-#                         torch.flip(image_param,[2]), torch.flip(image_param,[1,2])),1)), 2
-#                 )
-#             else:
-#                 image_param = model_fit.param.reshape(N_realization,M,N)
-#                 image_param_flip = image_param
-
-#             loss = 0
-#             loss_mean = (
-#                 (target_mean/target_std - image_param_flip.mean((-2,-1))/target_std)**2
-#             ).sum()
-#             loss += loss_mean
-#             if 'hist' in coef:
-#                 loss_hist = (
-#                     (
-#                         image_param.reshape(N_realization,-1).sort(dim=-1).values - 
-#                         target_cumsum0
-#                     )**2
-#                 ).sum() / image_torch.var()
-#                 loss += loss_hist
-#                 if '7' in coef:
-#                     for j in range(J):
-#                         loss_hist7 += (
-#                             (
-#                                 smooth(image_param,j).reshape(N_realization,-1).sort(dim=-1).values - 
-#                                 target_cumsum[j]
-#                             )**2
-#                         ).sum() / smooth(image_torch,j).var()
-#                 lost_hist *= 1 / M / N * 1e3
-#                 loss += loss_hist
-#             if 'lbound' in coef:
-#                 loss_lbound = torch.exp(
-#                     (5 + low_bound - image_param.reshape(N_realization,-1))/0.03
-#                 ).mean()
-#                 loss += loss_lbound
-#             if 'bi' in coef:
-#                 bi = bispectrum_calculator.forward(
-#                     image_param_flip
-#                 )
-#                 loss_bi = ((target_bi - bi)**2).sum() / N_image
-#                 loss += loss_bi
-#                 # add power spectrum
-#                 model_P00 = scattering_calculator.scattering_coef(
-#                     image_param_flip, flatten=True
-#                 )['P00_iso'].log()
-#                 loss_P00 = (
-#                     (target_ST_dict['P00_iso'].log() - model_P00)**2
-#                 ).sum() / N_image
-#                 loss += loss_P00
-#             if 'ST' in coef:
-#                 model_ST = scattering_calculator.scattering_coef(
-#                     image_param_flip, flatten=True
-#                 )['all_iso']
-#                 loss_ST = ((target_ST - model_ST)**2).sum() / N_image
-#                 loss += loss_ST
-#             if 'SC' in coef:
-#                 model_SC_dict = scattering_calculator.scattering_cov(
-#                     image_param_flip, use_ref=SC_use_ref, flatten=True
-#                 )
-#                 # scattering cov altogether
-#                 model_Cov_all = model_SC_dict['all_iso']
-#                 loss_Cov_all = ((target_Cov_all - model_Cov_all)**2).sum() / N_image
-#                 loss += loss_Cov_all
-#                 # err_P00, err_S1, err_C01, err_P11, err_C11 = loss_scattering_cov(
-#                 #     target_SC_dict, model_SC_dict
-#                 # )
-#                 # loss += err_C11 #err_P00 + err_P11 err_C01 + 
-#             if other_function is not None:
-#                 loss_other = ((target_other - other_function(image_param_flip))**2).sum() / N_image
-#                 loss += loss_other
-                
-#             if i%100== 0 or i%100==-1 or optim_mode=='LBFGS':
-#                 print(i)
-#                 print('loss: ',loss)
-#                 print('err_mean: ',loss_mean**0.5)
-#                 if 'PS' in coef: print('loss_PS: ',loss_PS)
-#                 if 'hist' in coef: print('loss_hist: ',loss_hist)
-#                 if 'lbound' in coef: print('loss_lbound: ',loss_lbound)
-#                 if 'hbound' in coef: print('loss_hbound: ',loss_hbound)
-#                 if 'bi' in coef: print('err_bi: ',(loss_bi/target_bi.shape[-1])**0.5)
-#                 if 'ST' in coef: 
-#                     print('err_ST: ',((target_ST - model_ST)**2).mean()**0.5)
-#                     print('loss_ST: ',loss_ST)
-#                 if 'SC' in coef: 
-#                     err_P00, err_S1, err_C01, err_P11, err_C11 = loss_scattering_cov(
-#                         target_SC_dict, model_SC_dict
-#                     )
-#                     print('err_P00: ',err_P00)
-#                     print('err_S1: ',err_S1)
-#                     print('err_Corr01: ',err_C01)
-#                     print('err_P11: ',err_P11)
-#                     print('err_Corr11: ',err_C11)
-#                     # print('loss_cov_all: ', loss_Cov_all)
-#             loss.backward()
-#             return loss
-
-#         # optimize
-#         for i in range(int(num_step)):
-#             optimizer.step(closure)
-
-#     return model_fit.param.reshape(N_realization,M,N).cpu().detach().numpy()
-
-# def loss_scattering_cov(target_SC_dict, model_SC_dict, ):
-#     '''
-#         calculate respectively the loss from different subgroups of 
-#         scattering covariance. It is used in the function "image_synthesis".
-#     '''
-#     target_P00 = target_SC_dict['P00_iso'].log()
-#     target_S1  = target_SC_dict['S1_iso'].log()
-#     target_C01 = target_SC_dict['C01_iso']
-#     target_P11 = target_SC_dict['P11_iso'].log()
-#     target_C11 = target_SC_dict['Corr11_iso']
-    
-#     model_P00 = model_SC_dict['P00_iso'].log()
-#     model_S1  = model_SC_dict['S1_iso'].log()
-#     model_C01 = model_SC_dict['C01_iso']
-#     model_P11 = model_SC_dict['P11_iso'].log()
-#     model_C11 = model_SC_dict['Corr11_iso']
-    
-#     err_P00 = ((target_P00 - model_P00)**2).mean()**0.5
-#     err_S1 =  ((target_S1  - model_S1 )**2).mean()**0.5
-#     err_C01 = ((target_C01 - model_C01).abs()**2).mean()**0.5
-#     err_P11 = ((target_P11 - model_P11)**2).mean()**0.5
-#     err_C11 = ((target_C11 - model_C11).abs()**2).mean()**0.5
-    
-#     return err_P00, err_S1, err_C01, err_P11, err_C11
-
 
 def scale_annotation_a_b(idx_info):
     """
