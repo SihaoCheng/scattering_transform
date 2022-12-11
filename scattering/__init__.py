@@ -1012,13 +1012,13 @@ def chunk_model(X, st_calc, nchunks, **kwargs):
         
         covs_l_iso.append(cov_iso)
         covs_l.append(cov)
-    s_cov = {'index_for_synthesis_iso':idx_iso, 'for_synthesis_iso':torch.cat(covs_l_iso),
+    s_cov_set = {'index_for_synthesis_iso':idx_iso, 'for_synthesis_iso':torch.cat(covs_l_iso),
              'index_for_synthesis':idx, 'for_synthesis':torch.cat(covs_l)}
-    return s_cov
+    return s_cov_set
 
 # a function that prepares the argument "s_cov_func" to be given to the "synthesis" function
 def prepare_threshold_func(
-    s_cov, threshold_list, fourier_angle=True, fourier_scale=True, if_iso=False, axis='all', 
+    s_cov_set, threshold_list, fourier_angle=True, fourier_scale=True, if_iso=False, axis='all', 
     all_P00=True, all_S1=True):
 
     # initialize operators on top of 2D scattering
@@ -1026,11 +1026,11 @@ def prepare_threshold_func(
     scale_operator = FourierScale()
 
     # the function that computes the final representation
-    def harmonic_transform(s_cov, mask=None, output_info=False, if_iso=False):
+    def harmonic_transform(s_cov_set, mask=None, output_info=False, if_iso=False):
         iso_suffix = '_iso' if if_iso else ''
         # get coefficient vectors and the index vectors
-        coef = s_cov['for_synthesis'+iso_suffix]
-        idx = scale_annotation_a_b(to_numpy(s_cov['index_for_synthesis'+iso_suffix]).T)
+        coef = s_cov_set['for_synthesis'+iso_suffix]
+        idx = scale_annotation_a_b(to_numpy(s_cov_set['index_for_synthesis'+iso_suffix]).T)
         # perform FT on angle indexes l1 (and l2, l3, depending on the 'axis' param)
         if fourier_angle:
             coef, idx = angle_operator(coef, idx, if_isotropic=if_iso, axis=axis)
@@ -1043,7 +1043,7 @@ def prepare_threshold_func(
         else:
             return coef[:, mask] if mask is not None else coef
 
-    idx, covs_all = harmonic_transform(s_cov, mask=None, output_info=True, if_iso=if_iso)
+    idx, covs_all = harmonic_transform(s_cov_set, mask=None, output_info=True, if_iso=if_iso)
     mean = covs_all.mean(0)
     std = covs_all.std(0)
     
@@ -1063,7 +1063,7 @@ def prepare_threshold_func(
         mask_list.append(snr_mask[None,:])
     masks = torch.cat(mask_list)
     
-    threshold_func= lambda s_cov, params: harmonic_transform(s_cov, mask=params, if_iso=if_iso)
+    threshold_func= lambda s_cov_set, params: harmonic_transform(s_cov_set, mask=params, if_iso=if_iso)
     
     return idx, to_numpy(mean), to_numpy(std), threshold_func, to_numpy(masks)
 
