@@ -1016,7 +1016,61 @@ def chunk_model(X, st_calc, nchunks, **kwargs):
         covs_l.append(cov)
     s_cov = {'index_for_synthesis_iso':idx_iso, 'for_synthesis_iso':torch.cat(covs_l_iso),
              'index_for_synthesis':idx, 'for_synthesis':torch.cat(covs_l)}
-    return s_cov    
+    return s_cov
+
+# a function that prepares the argument "s_cov_func" to be given to the "synthesis" function
+def prepare_threshold_func(
+    s_cov, threshold_list, fourier_angle=True, fourier_scale=True, if_iso=False, axis='all', 
+    all_P00=True, all_S1=True):
+
+    # initialize operators on top of 2D scattering
+    angle_operator = scattering.FourierAngle()
+    scale_operator = scattering.FourierScale()
+
+    # the function that computes the final representation
+    def harmonic_transform(s_cov, mask=None, output_info=False, if_iso=False):
+        
+        iso_suffix = '_iso' if if_iso else ''
+        # get coefficient vectors and the index vectors
+        coef = s_cov['for_synthesis'+iso_suffix]
+        idx = scattering.scale_annotation_a_b(
+            scattering.utils.to_numpy(s_cov['index_for_synthesis'+iso_suffix]).T
+        )
+        # perform FT on angle indexes l1 (and l2, l3, depending on the 'axis' param)
+        if fourier_angle:
+            coef, idx = angle_operator(coef, idx, if_isotropic=if_iso, axis=axis)
+        # perform FT on scale indexes j1 while keeping j1-j2, j2-j3
+        if fourier_scale:
+            coef, idx = scale_operator(coef, idx)
+        # output
+        if output_info:
+            return idx, coef[:, mask] if mask is not None else coef
+        else:
+            return coef[:, mask] if mask is not None else coef
+
+    idx, covs_all = harmonic_transform(s_cov, mask=None, output_info=True, if_iso=if_iso)
+    mean = covs_all.mean(0)
+    std = covs_all.std(0)
+    
+    # compute thresholding mask
+    mask_list = []
+    for threshold in threshold_list:
+        # thresholding coefficients
+        snr_mask = (mean.abs() / std > threshold)
+        # keep the field mean not thresholded
+        snr_mask[(np.array(idx)[:,0]=='mean')] = True
+        # keep all wavelet power spectrum (P00) not thresholded, if the "all_P00" param is True
+        if all_P00:
+            snr_mask[(np.array(idx)[:,0]=='P00')] = True
+        # keep all wavelet L1 norms (S1) not thresholded, if the "all_S1" param is True
+        if all_S1:
+            snr_mask[(np.array(idx)[:,0]=='S1')] = True
+        mask_list.append(snr_mask[None,:])
+    masks = torch.cat(mask_list)
+    
+    threshold_func= lambda s_cov, params: harmonic_transform(s_cov, mask=params, if_iso=if_iso)
+    
+    return idx, to_numpy(mean), to_numpy(std), threshold_func, to_numpy(masks)
 
 
 def convolve_by_FFT(field, func_in_Fourier, device='cpu'):
