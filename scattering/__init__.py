@@ -521,7 +521,7 @@ def get_random_data(target, M=None, N=None, N_image=None, mode='image', seed=Non
         gaussian_modulus[M//2, N//2] = 0
         gaussian_field = ifft2(fftshift(gaussian_modulus[None,:,:]*gaussian_phase))
     data = fftshift(gaussian_field.real)
-    return data
+    return np.ascontiguousarray(data)
 
 # transforming scattering representation s_cov['for_synthesis_iso']
 # angular fft of C01 and C11
