@@ -3,7 +3,9 @@ import torch
 import torch.fft
 
 class FiltersSet(object):
-    def __init__(self, M, N, J, L):
+    def __init__(self, M, N, J=None, L=4):
+        if J is None:
+            J = int(np.log2(min(M,N))) - 1
         self.M = M
         self.N = N
         self.J = J
