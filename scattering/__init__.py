@@ -989,8 +989,6 @@ if __name__ == "__main__":
     
     
 # for large data, scattering computation needs to be chunked to hold on memory
-
-from scattering.utils import to_numpy
 def chunk_model(X, st_calc, nchunks, **kwargs):
     partition = np.array_split(np.arange(X.shape[0]), nchunks)
     covs_l = [] 
@@ -1024,18 +1022,15 @@ def prepare_threshold_func(
     all_P00=True, all_S1=True):
 
     # initialize operators on top of 2D scattering
-    angle_operator = scattering.FourierAngle()
-    scale_operator = scattering.FourierScale()
+    angle_operator = FourierAngle()
+    scale_operator = FourierScale()
 
     # the function that computes the final representation
     def harmonic_transform(s_cov, mask=None, output_info=False, if_iso=False):
-        
         iso_suffix = '_iso' if if_iso else ''
         # get coefficient vectors and the index vectors
         coef = s_cov['for_synthesis'+iso_suffix]
-        idx = scattering.scale_annotation_a_b(
-            scattering.utils.to_numpy(s_cov['index_for_synthesis'+iso_suffix]).T
-        )
+        idx = scale_annotation_a_b(to_numpy(s_cov['index_for_synthesis'+iso_suffix]).T)
         # perform FT on angle indexes l1 (and l2, l3, depending on the 'axis' param)
         if fourier_angle:
             coef, idx = angle_operator(coef, idx, if_isotropic=if_iso, axis=axis)
