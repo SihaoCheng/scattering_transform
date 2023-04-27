@@ -867,7 +867,7 @@ class Scattering2d(object):
     def scattering_cov(
         self, data, if_large_batch=False, C11_criteria=None, 
         use_ref=False, normalization='P00', remove_edge=False, 
-        pseudo_coef=1,
+        pseudo_coef=1, get_variance=False,
     ):
         '''
         Calculates the scattering correlations for a batch of images, including:
@@ -999,6 +999,17 @@ class Scattering2d(object):
             P11_iso   = P11_iso.cuda()
             C11_pre_norm_iso=C11_pre_norm_iso.cuda()
             C11_iso   = C11_iso.cuda()
+        # variance
+        if get_variance:
+            P00_sigma= torch.zeros((N_image,J,L), dtype=data.dtype)
+            S1_sigma = torch.zeros((N_image,J,L), dtype=data.dtype)
+            C01_sigma = torch.zeros((N_image,J,J,L,L), dtype=data_f.dtype) + np.nan
+            C11_sigma = torch.zeros((N_image,J,J,J,L,L,L), dtype=data_f.dtype) + np.nan
+            if self.device=='gpu':
+                P00       = P00.cuda()
+                S1        = S1.cuda()
+                C01       = C01.cuda()
+                C11       = C11.cuda()
         
         # calculate scattering fields
         I1 = torch.fft.ifftn(
@@ -1014,6 +1025,10 @@ class Scattering2d(object):
             edge_mask = 1
         P00 = (I1**2 * edge_mask).mean((-2,-1))
         S1  = (I1 * edge_mask).mean((-2,-1))
+#         if get_variance:
+#             P00_sigma = (I1**2 * edge_mask).std((-2,-1))
+#             S1_sigma  = (I1 * edge_mask).std((-2,-1))
+            
         if pseudo_coef != 1:
             I1 = I1**pseudo_coef
         
