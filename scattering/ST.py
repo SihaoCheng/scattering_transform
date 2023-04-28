@@ -654,7 +654,155 @@ class Scattering2d(object):
                 'index_for_synthesis': index_for_synthesis, 
                 'index_for_synthesis_iso': index_for_synthesis_iso,
                 }
+
+
     
+    def scattering_coef_simple(
+        self, data, if_large_batch=False, j1j2_criteria='j2>=j1', 
+        pseudo_coef=1, 
+    ):
+        M, N, J, L = self.M, self.N, self.J, self.L
+        N_image = data.shape[0]
+        filters_set = self.filters_set
+        weight = self.weight
+
+        # convert numpy array input into torch tensors
+        if type(data) == np.ndarray:
+            data = torch.from_numpy(data)
+
+        # initialize tensors for scattering coefficients
+        S0 = torch.zeros((N_image,1), dtype=data.dtype)
+        P00= torch.zeros((N_image,J,L), dtype=data.dtype)
+        S1 = torch.zeros((N_image,J,L), dtype=data.dtype)
+        S2 = torch.zeros((N_image,J,J,L,L), dtype=data.dtype) + np.nan
+        S2_iso = torch.zeros((N_image,J,J,L), dtype=data.dtype)
+        
+        # move torch tensors to gpu device, if required
+        if self.device=='gpu':
+            data = data.cuda()
+            S0 = S0.cuda()
+            P00=P00.cuda()
+            S1 = S1.cuda()
+            S2 = S2.cuda()
+            S2_iso = S2_iso.cuda()
+        
+        # 0th order
+        S0[:,0] = data.mean((-2,-1))
+        
+        # 1st and 2nd order
+        data_f = torch.fft.fftn(data, dim=(-2,-1))
+
+        if algorithm == 'fast':
+            if not if_large_batch:
+                # only use the low-k Fourier coefs when calculating large-j scattering coefs.
+                for j1 in np.arange(J):
+                    # 1st order: cut high k
+                    dx1, dy1 = self.get_dxdy(j1)
+                    data_f_small = self.cut_high_k_off(data_f, dx1, dy1)
+                    wavelet_f = self.cut_high_k_off(filters_set[j1], dx1, dy1)
+                    _, M1, N1 = wavelet_f.shape
+                    # I1(j1, l1) = | I * psi(j1, l1) |, "*" means convolution
+                    I1 = torch.fft.ifftn(
+                        data_f_small[:,None,:,:] * wavelet_f[None,:,:,:],
+                        dim=(-2,-1),
+                    ).abs()
+                    if weight is None:
+                        weight_temp = 1
+                    else:
+                        weight_temp = self.weight_downsample_list[j1][None,None,:,:]
+                    # S1 = I1 averaged over (x,y)
+                    S1 [:,j1] = (I1**pseudo_coef * weight_temp).mean((-2,-1)) * M1*N1/M/N
+                    P00[:,j1] = (I1**2 * weight_temp).mean((-2,-1)) * (M1*N1/M/N)**2
+                    # 2nd order
+                    I1_f = torch.fft.fftn(I1, dim=(-2,-1))
+                    del I1
+                    for j2 in np.arange(J):
+                        if eval(j1j2_criteria):
+                            # cut high k
+                            dx2, dy2 = self.get_dxdy(j2)
+                            I1_f_small = self.cut_high_k_off(I1_f, dx2, dy2)
+                            wavelet_f2 = self.cut_high_k_off(filters_set[j2], dx2, dy2)
+                            _, M2, N2 = wavelet_f2.shape
+                            # I1(j1, l1, j2, l2) = | I1(j1, l1) * psi(j2, l2) |
+                            #                    = || I * psi(j1, l1) | * psi(j2, l2)| 
+                            # "*" means convolution
+                            I2 = torch.fft.ifftn(
+                                I1_f_small[:,:,None,:,:] * wavelet_f2[None,None,:,:,:], 
+                                dim=(-2,-1),
+                            ).abs()
+                            if weight is None:
+                                weight_temp = 1
+                            else:
+                                weight_temp = self.weight_downsample_list[j2][None,None,None,:,:]
+                            # S2 = I2 averaged over (x,y)
+                            S2[:,j1,j2,:,:] = (
+                                I2**pseudo_coef * weight_temp
+                            ).mean((-2,-1)) * M2*N2/M/N
+            elif if_large_batch:
+                # run for loop over l1 and l2, instead of calculating them all together
+                # in an array. This way saves memory, but reduces the speed for small batch
+                # size.
+                for j1 in np.arange(J):
+                    # cut high k
+                    dx1, dy1 = self.get_dxdy(j1)
+                    data_f_small = self.cut_high_k_off(data_f, dx1, dy1)
+                    wavelet_f = self.cut_high_k_off(filters_set[j1], dx1, dy1)
+                    _, M1, N1 = wavelet_f.shape
+                    for l1 in range(L):
+                        # 1st order
+                        I1 = torch.fft.ifftn(
+                            data_f_small * wavelet_f[None,l1], 
+                            dim=(-2,-1)
+                        ).abs()
+                        if weight is None:
+                            weight_temp = 1
+                        else:
+                            weight_temp = self.weight_downsample_list[j1][None,:,:]
+                        S1 [:,j1,l1] = (I1**pseudo_coef * weight_temp).mean((-2,-1)) * (M1*N1/M/N)
+                        P00[:,j1,l1] = (I1**2 * weight_temp).mean((-2,-1)) * (M1*N1/M/N)**2
+                        # 2nd order
+                        I1_f = torch.fft.fftn(I1, dim=(-2,-1))
+                        del I1
+                        for j2 in np.arange(J):
+                            if eval(j1j2_criteria):
+                                # cut high k
+                                dx2, dy2 = self.get_dxdy(j2)
+                                I1_f_small = self.cut_high_k_off(I1_f, dx2, dy2)
+                                wavelet_f2 = self.cut_high_k_off(filters_set[j2], dx2, dy2)
+                                _, M2, N2 = wavelet_f2.shape
+                                for l2 in range(L):
+                                    I2 = torch.fft.ifftn(I1_f_small * wavelet_f2[None,l2], dim=(-2,-1)).abs()
+                                    if weight is None:
+                                        weight_temp = 1
+                                    else:
+                                        weight_temp = self.weight_downsample_list[j2][None,:,:]
+                                    S2[:,j1,j2,l1,l2] = (
+                                        I2**pseudo_coef * weight_temp
+                                    ).mean((-2,-1)) * M2*N2/M/N
+
+        # average over l1
+        S1_iso =  S1.mean(-1)
+        P00_iso= P00.mean(-1)
+        for l1 in range(L):
+            for l2 in range(L):
+                S2_iso [:,:,:,(l2-l1)%L] += S2 [:,:,:,l1,l2]
+        S2_iso  /= L
+        
+        # define two reduced s2 coefficients
+        s21 = S2_iso.mean(-1) / S1_iso[:,:,None]
+        s22 = S2_iso[:,:,:,0] / S2_iso[:,:,:,L//2]
+        
+        return {'S0':S0,  
+                'S1_iso':  S1_iso, 
+                'S2_iso':  S2_iso, 's21':s21, 's22':s22,
+                'P00_iso':P00_iso,
+        }
+        
+    
+    
+    
+    
+
     def scattering_coef(
         self, data, if_large_batch=False, j1j2_criteria='j2>=j1', algorithm='fast', 
         pseudo_coef=1, remove_edge=False,
