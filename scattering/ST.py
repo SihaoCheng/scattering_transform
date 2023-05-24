@@ -232,7 +232,7 @@ class FiltersSet(object):
         radial[k>= 2 * k0] = 0
         angular = np.cos(theta - theta0)**(L/2-1+2)
         angular[np.cos(theta - theta0)<0] = 0
-        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(L/2-1) / np.sqrt((L/2)* np.math.factorial(L-2))
+        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(int(L/2-1)) / np.sqrt((L/2)* np.math.factorial(int(L-2)))
         bump_steerable_fft = c * (radial * angular).sum((0,1))
         return bump_steerable_fft
 
@@ -257,7 +257,7 @@ class FiltersSet(object):
         # radial[k>= k0] = radial2[k>= k0]
         angular = np.cos(theta - theta0)**(L/2-1+2)
         angular[np.cos(theta - theta0)<0] = 0
-        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(L/2-1) / np.sqrt((L/2)* np.math.factorial(L-2))
+        c = 1/1.29 * 2**(L/2-1) * np.math.factorial(int(L/2-1)) / np.sqrt((L/2)* np.math.factorial(int(L-2)))
         gau_steerable_fft = c * (radial * angular).sum((0,1))
         return gau_steerable_fft
 
