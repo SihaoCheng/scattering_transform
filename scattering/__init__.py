@@ -773,7 +773,9 @@ def prepare_threshold_func(
 
     idx, covs_all = harmonic_transform(s_cov_set, mask=None, output_info=True, if_iso=if_iso)
     mean = covs_all.mean(0)
-    std = covs_all.std(0)
+    print(len(covs_all))
+    std = covs_all.std(0) * (len(covs_all) / (len(covs_all)-1))**0.5
+#     std = covs_all.std(0)
     
     # compute thresholding mask
     mask_list = []
