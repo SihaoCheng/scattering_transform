@@ -1190,7 +1190,7 @@ class Scattering2d(object):
             wavelet_f3_squared = wavelet_f3**2
             if remove_edge: 
                 edge_mask = self.cut_high_k_off(self.edge_masks[j3], dx3, dy3)
-                edge_mask = edge_mask / edge_mask.mean((-2,-1))[:,None,None]
+                edge_mask = edge_mask / edge_mask.mean((-2,-1))
             else: 
                 edge_mask = 1
             # a normalization change due to the cutoff of frequency space
