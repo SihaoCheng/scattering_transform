@@ -37,6 +37,7 @@ def synthesis(
     N_ensemble=1,
     reference_P00=None,
     pseudo_coef=1,
+    remove_edge=False
 ):
     '''
 the estimator_name can be 's_mean', 's_mean_iso', 's_cov', 's_cov_iso', 'alpha_cov', 
