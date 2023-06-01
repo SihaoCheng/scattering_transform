@@ -8,6 +8,9 @@ from scattering.backend import cdgmm, Modulus, SubsampleFourier, Pad, mulcu, \
     extract_shift3
 from scattering.FiltersSet import FiltersSet
 
+if __name__ == "__main__":
+    AlphaScattering2d_cov()
+    
 class AlphaScattering2d_cov(object):
     def __init__(
         self, M, N, J, L=4, A=4, A_prime=1, delta_j=1, delta_l=4,
