@@ -1,7 +1,3 @@
-import numpy as np
-import torch
-import torch.fft
-
 class FiltersSet(object):
     def __init__(self, M, N, J=None, L=4):
         if J is None:
