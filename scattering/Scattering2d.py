@@ -103,6 +103,7 @@ class Scattering2d(object):
             if weight is not None:
                 self.weight = self.weight.cuda()
             self.edge_masks = self.edge_masks.cuda()
+        self.edge_masks_f = torch.fft.fftn(self.edge_masks, dim=(-2,-1))
         
         # reference coefficients for cov normalization
         if ref is not None:
@@ -705,7 +706,7 @@ class Scattering2d(object):
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
             if remove_edge: 
-                edge_mask = cut_high_k_off(self.edge_masks[j3], dx3, dy3)
+                edge_mask = torch.fft.ifftn(cut_high_k_off(self.edge_masks_f[j3], dx3, dy3), dim=(-2,-1))
                 edge_mask = edge_mask / edge_mask.mean((-2,-1))
             else: 
                 edge_mask = 1
