@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 
 from scattering.utils import to_numpy
 from scattering.FiltersSet import FiltersSet
-from scattering.Scattering2d import Scattering2d, reduced_ST
-from scattering.AlphaScattering2d_cov import AlphaScattering2d_cov
+from scattering.Scattering2d import Scattering2d
 from scattering.polyspectra_calculators import get_power_spectrum, Bispectrum_Calculator, Trispectrum_Calculator
+from scattering.AlphaScattering2d_cov import AlphaScattering2d_cov
 from scattering.angle_transforms import FourierAngle
 from scattering.scale_transforms import FourierScale
 
@@ -830,3 +830,22 @@ def convolve_by_FFT(field, func_in_Fourier, device='cpu'):
     # filter_f[0,0] = 1
 
     return field_after_conv, filter_f, k_grid>0
+
+
+# util to reduce ST coefficients
+def reduced_ST(S, J, L):
+    s0 = S[:,0:1]
+    s1 = S[:,1:J+1]
+    s2 = S[:,J+1:].reshape((-1,J,J,L))
+    s21 = (s2.mean(-1) / s1[:,:,None]).reshape((-1,J**2))
+    s22 = (s2[:,:,:,0] / s2[:,:,:,L//2]).reshape((-1,J**2))
+    
+    s1 = np.log(s1)
+    select = s21[0]>0
+    s21 = np.log(s21[:, select])
+    s22 = np.log(s22[:, select])
+    
+    j1 = (np.arange(J)[:,None] + np.zeros(J)[None,:]).flatten()
+    j2 = (np.arange(J)[None,:] + np.zeros(J)[:,None]).flatten()
+    j1j2 = np.concatenate((j1[None, select], j2[None, select]), axis=0)
+    return s0, s1, s21, s22, s2, j1j2
