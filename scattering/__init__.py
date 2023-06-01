@@ -116,14 +116,14 @@ Use * or + to connect more than one condition.
                 s_cov_set = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, 
                     C11_criteria=C11_criteria, 
-                    normalization=normalization, pseudo_coef=pseudo_coef,
+                    normalization=normalization, pseudo_coef=pseudo_coef, remove_edge=remove_edge
                 )
                 return s_cov_func(s_cov_set, s_cov_func_params)
         if estimator_name=='s_cov_iso_para_perp':
             def func_s(image):
                 result = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
-                    normalization=normalization, pseudo_coef=pseudo_coef,
+                    normalization=normalization, pseudo_coef=pseudo_coef,remove_edge=remove_edge
                 )
                 index_type, j1, l1, j2, l2, j3, l3 = result['index_for_synthesis_iso']
                 select = (index_type<3) + ((l2==0) + (l2==L//2)) * ((l3==0) + (l3==L//2) + (l3==-1))
@@ -132,7 +132,7 @@ Use * or + to connect more than one condition.
             def func_s(image):
                 result = st_calc.scattering_cov(
                     image, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
-                    normalization=normalization, pseudo_coef=pseudo_coef,
+                    normalization=normalization, pseudo_coef=pseudo_coef, remove_edge=remove_edge
                 )
                 coef = result['for_synthesis_iso']
                 index_type, j1, l1, j2, l2, j3, l3 = result['index_for_synthesis_iso']
@@ -145,15 +145,17 @@ Use * or + to connect more than one condition.
                 ), dim=-1)
         if estimator_name=='s_cov_iso':
             func_s = lambda x: st_calc.scattering_cov(
-                x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, normalization=normalization, pseudo_coef=pseudo_coef,)['for_synthesis_iso']
+                x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                normalization=normalization, pseudo_coef=pseudo_coef,remove_edge=remove_edge)['for_synthesis_iso']
         if estimator_name=='s_cov':
             func_s = lambda x: st_calc.scattering_cov(
-                x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, normalization=normalization, pseudo_coef=pseudo_coef,)['for_synthesis']
+                x, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria, 
+                normalization=normalization, pseudo_coef=pseudo_coef,remove_edge=remove_edge)['for_synthesis']
         if estimator_name=='s_cov_2fields_iso':
             def func_s(image):
                 result = st_calc.scattering_cov_2fields(
                     image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
-                    normalization=normalization
+                    normalization=normalization, pseudo_coef=pseudo_coef, remove_edge=remove_edge
                 )
                 select =(result['index_for_synthesis_iso'][0]!=1) * (result['index_for_synthesis_iso'][0]!=3) *\
                         (result['index_for_synthesis_iso'][0]!=7) * (result['index_for_synthesis_iso'][0]!=11)*\
@@ -163,7 +165,7 @@ Use * or + to connect more than one condition.
             def func_s(image):
                 result = st_calc.scattering_cov_2fields(
                     image, image_b, use_ref=True, if_large_batch=if_large_batch, C11_criteria=C11_criteria,
-                    normalization=normalization
+                    normalization=normalization, pseudo_coef=pseudo_coef, remove_edge=remove_edge
                 )
                 select =(result['index_for_synthesis'][0]!=1) * (result['index_for_synthesis'][0]!=3) *\
                         (result['index_for_synthesis'][0]!=7) * (result['index_for_synthesis'][0]!=11) *\
