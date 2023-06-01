@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.fft
-from FiltersSet import FiltersSet
+from scattering.FiltersSet import FiltersSet
 
 # class FiltersSet(object):
 #     def __init__(self, M, N, J=None, L=4):
