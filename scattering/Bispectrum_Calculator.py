@@ -1,3 +1,7 @@
+import numpy as np
+import torch
+import torch.fft
+
 class Bispectrum_Calculator(object):
     def __init__(self, M, N, k_range=None, bins=None, bin_type='log', device='gpu', edge=0):
         if not torch.cuda.is_available(): device='cpu'
