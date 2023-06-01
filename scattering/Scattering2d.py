@@ -1212,7 +1212,7 @@ class Scattering2d(object):
 # utility functions 
 #
 # ------------------------------------------------------------------------------------------
-def cut_high_k_off(self, data_f, dx, dy):
+def cut_high_k_off(data_f, dx, dy):
     if_xodd = (data_f.shape[-2]%2==1)
     if_yodd = (data_f.shape[-1]%2==1)
     result = torch.cat(
@@ -1232,25 +1232,6 @@ def get_edge_masks(M, N, J):
     for j in range(J):
         edge_masks[j] = (X>=2**j*2) * (X<=M-2**j*2) * (Y>=2**j*2) * (Y<=N-2**j*2)
     return edge_masks
-
-
-# util to reduce ST coefficients
-def reduced_ST(S, J, L):
-    s0 = S[:,0:1]
-    s1 = S[:,1:J+1]
-    s2 = S[:,J+1:].reshape((-1,J,J,L))
-    s21 = (s2.mean(-1) / s1[:,:,None]).reshape((-1,J**2))
-    s22 = (s2[:,:,:,0] / s2[:,:,:,L//2]).reshape((-1,J**2))
-    
-    s1 = np.log(s1)
-    select = s21[0]>0
-    s21 = np.log(s21[:, select])
-    s22 = np.log(s22[:, select])
-    
-    j1 = (np.arange(J)[:,None] + np.zeros(J)[None,:]).flatten()
-    j2 = (np.arange(J)[None,:] + np.zeros(J)[:,None]).flatten()
-    j1j2 = np.concatenate((j1[None, select], j2[None, select]), axis=0)
-    return s0, s1, s21, s22, s2, j1j2
 
 
 def get_scattering_index(J, L, normalization='P00', C11_criteria='j1>-1', num_field=1):
