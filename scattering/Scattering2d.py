@@ -715,8 +715,8 @@ class Scattering2d(object):
                 I1_f2_wf3_small = I1_f_small[:,j2].view(N_image,L,1,M3,N3) * wavelet_f3.view(1,1,L,M3,N3)
                 I1_f2_wf3_2_small = I1_f_small[:,j2].view(N_image,L,1,M3,N3) * wavelet_f3_squared.view(1,1,L,M3,N3)
                 if remove_edge:
-                    I12_w3_small = fft.ifftn(I1_f2_wf3_small, dim=(-2,-1), norm='ortho')
-                    I12_w3_2_small = fft.ifftn(I1_f2_wf3_2_small, dim=(-2,-1), norm='ortho')
+                    I12_w3_small = torch.fft.ifftn(I1_f2_wf3_small, dim=(-2,-1), norm='ortho')
+                    I12_w3_2_small = torch.fft.ifftn(I1_f2_wf3_2_small, dim=(-2,-1), norm='ortho')
                 if use_ref:
                     if normalization=='P11':
                         norm_factor_C01 = (ref_P00[:,None,j3,:] * ref_P11[:,j2,j3,:,:]**pseudo_coef)**0.5
@@ -736,9 +736,7 @@ class Scattering2d(object):
                     ).mean((-2,-1)) * fft_factor / norm_factor_C01
                 else:
                     C01[:,j2,j3,:,:] = (
-                        data_small.view(N_image,1,1,M3,N3) * torch.conj(
-                            fft.ifftn(I1_f2_wf3_small, dim=(-2,-1), norm='ortho')
-                        ) * edge_mask
+                        data_small.view(N_image,1,1,M3,N3) * torch.conj(I12_w3_small) * edge_mask
                     ).mean((-2,-1)) * fft_factor / norm_factor_C01
                 if j2 <= j3:
                     for j1 in range(0, j2+1):
