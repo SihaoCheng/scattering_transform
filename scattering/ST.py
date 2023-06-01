@@ -1233,27 +1233,27 @@ class Scattering2d(object):
                             if not remove_edge:
                                 if not if_large_batch:
                                     # [N_image,l1,l2,l3,x,y]
-                                    C11_pre_norm[:,j1,j2,j3,:,:,:] = (
-                                        I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
-                                        torch.conj(I1_f_small[:,j2].view(N_image,1,L,1,M3,N3)) *
-                                        wavelet_f3_squared.view(1,1,1,L,M3,N3)
-                                    ).mean((-2,-1)) * fft_factor
 #                                     C11_pre_norm[:,j1,j2,j3,:,:,:] = (
 #                                         I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
-#                                         torch.conj(I1_f2_wf3_2_small.view(N_image,1,L,L,M3,N3))
+#                                         torch.conj(I1_f_small[:,j2].view(N_image,1,L,1,M3,N3)) *
+#                                         wavelet_f3_squared.view(1,1,1,L,M3,N3)
 #                                     ).mean((-2,-1)) * fft_factor
+                                    C11_pre_norm[:,j1,j2,j3,:,:,:] = (
+                                        I1_f_small[:,j1].view(N_image,L,1,1,M3,N3) * 
+                                        torch.conj(I1_f2_wf3_2_small.view(N_image,1,L,L,M3,N3))
+                                    ).mean((-2,-1)) * fft_factor
                                 else:
                                     for l1 in range(L):
                                     # [N_image,l2,l3,x,y]
-                                        C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
-                                            I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
-                                            torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
-                                            wavelet_f3_squared.view(1,1,L,M3,N3)
-                                        ).mean((-2,-1)) * fft_factor
 #                                         C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
 #                                             I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
-#                                             torch.conj(I1_f2_wf3_2_small.view(N_image,L,L,M3,N3))
+#                                             torch.conj(I1_f_small[:,j2].view(N_image,L,1,M3,N3)) *
+#                                             wavelet_f3_squared.view(1,1,L,M3,N3)
 #                                         ).mean((-2,-1)) * fft_factor
+                                        C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
+                                            I1_f_small[:,j1,l1].view(N_image,1,1,M3,N3) * 
+                                            torch.conj(I1_f2_wf3_2_small.view(N_image,L,L,M3,N3))
+                                        ).mean((-2,-1)) * fft_factor
                             else:
                                 if not if_large_batch:
                                     # [N_image,l1,l2,l3,x,y]
@@ -1265,11 +1265,11 @@ class Scattering2d(object):
                                 else:
                                     for l1 in range(L):
                                     # [N_image,l2,l3,x,y]
-                                    C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
-                                        I1_small[:,j1].view(N_image,1,1,M3,N3) * torch.conj(
-                                            I12_w3_2_small.view(N_image,L,L,M3,N3)
-                                        ) * edge_mask
-                                    ).mean((-2,-1)) * fft_factor
+                                        C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
+                                            I1_small[:,j1].view(N_image,1,1,M3,N3) * torch.conj(
+                                                I12_w3_2_small.view(N_image,L,L,M3,N3)
+                                            ) * edge_mask
+                                        ).mean((-2,-1)) * fft_factor
         # define P11 from diagonals of C11
         for j1 in range(J):
             for l1 in range(L):
