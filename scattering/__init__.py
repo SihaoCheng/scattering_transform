@@ -12,7 +12,7 @@ from scattering.ST import FiltersSet, Scattering2d, \
     get_power_spectrum, AlphaScattering2d_cov, \
     reduced_ST
 from scattering.Bispectrum_Calculator import Bispectrum_Calculator
-from scattering.Trspectrum_Calculator import Trispectrum_Calculator
+from scattering.Trispectrum_Calculator import Trispectrum_Calculator
 from scattering.angle_transforms import FourierAngle
 from scattering.scale_transforms import FourierScale
 
