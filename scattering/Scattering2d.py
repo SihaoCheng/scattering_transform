@@ -740,7 +740,7 @@ class Scattering2d(object):
                 else:
                     C01[:,j2,j3,:,:] = (
                         data_small.view(N_image,1,1,M3,N3) * torch.conj(I12_w3_small)
-                    )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor / norm_factor_C01
+                    )[...,edge_dx:-edge_dx+1, edge_dy:-edge_dy+1].mean((-2,-1)) * fft_factor / norm_factor_C01
                 if j2 <= j3:
                     for j1 in range(0, j2+1):
                         if eval(C11_criteria):
@@ -765,7 +765,7 @@ class Scattering2d(object):
                                         I1_small[:,j1].view(N_image,L,1,1,M3,N3) * torch.conj(
                                             I12_w3_2_small.view(N_image,1,L,L,M3,N3)
                                         )
-                                    )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor
+                                    )[...,edge_dx:-edge_dx+1, edge_dy:-edge_dy+1].mean((-2,-1)) * fft_factor
                                 else:
                                     for l1 in range(L):
                                     # [N_image,l2,l3,x,y]
@@ -773,7 +773,7 @@ class Scattering2d(object):
                                             I1_small[:,j1].view(N_image,1,1,M3,N3) * torch.conj(
                                                 I12_w3_2_small.view(N_image,L,L,M3,N3)
                                             )
-                                        )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor
+                                        )[...,edge_dx:-edge_dx+1, edge_dy:-edge_dy+1].mean((-2,-1)) * fft_factor
         # define P11 from diagonals of C11
         for j1 in range(J):
             for l1 in range(L):
