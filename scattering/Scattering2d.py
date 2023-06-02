@@ -705,8 +705,8 @@ class Scattering2d(object):
             wavelet_f3 = cut_high_k_off(filters_set[j3], dx3, dy3) # L,x,y
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
-            edge_dx = max(8, int(2**j3*2*dx3*2/M))
-            edge_dy = max(8, int(2**j3*2*dy3*2/N))
+            edge_dx = min(8, int(2**j3*2*dx3*2/M))
+            edge_dy = min(8, int(2**j3*2*dy3*2/N))
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
             for j2 in range(0,j3+1):
@@ -1226,8 +1226,8 @@ def get_edge_masks(M, N, J):
     edge_masks = torch.empty((J, M, N))
     X, Y = torch.meshgrid(torch.arange(M), torch.arange(N), indexing='ij')
     for j in range(J):
-        edge_dx = max(M//4, 2**j*2)
-        edge_dy = max(N//4, 2**j*2)
+        edge_dx = min(M//4, 2**j*2)
+        edge_dy = min(N//4, 2**j*2)
         edge_masks[j] = (X>=edge_dx) * (X<=M-edge_dx) * (Y>=edge_dy) * (Y<=N-edge_dy)
     return edge_masks
 
