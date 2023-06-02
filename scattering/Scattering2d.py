@@ -60,6 +60,10 @@ class Scattering2d(object):
             self.M, self.N = M, N
         else: self.M, self.N = filters_set['psi'][0][0].shape
         self.J, self.L = J, L
+        self.frequency_factor = frequency_factor
+        self.l_oversampling = l_oversampling
+        self.wavelets = wavelets
+        self.precision = precision
         
         # filters set in arrays
         dtype = filters_set['psi'][0][0].dtype
@@ -527,7 +531,7 @@ class Scattering2d(object):
     # ---------------------------------------------------------------------------
     def scattering_cov(
         self, data, if_large_batch=False, C11_criteria=None, 
-        use_ref=False, normalization='P00', remove_edge=False, 
+        use_ref=False, normalization='P00', remove_edge=False,
         pseudo_coef=1, get_variance=False,
     ):
         '''
@@ -705,8 +709,8 @@ class Scattering2d(object):
             wavelet_f3 = cut_high_k_off(filters_set[j3], dx3, dy3) # L,x,y
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
-            edge_dx = min(8, int(2**j3*dx3*2/M))
-            edge_dy = min(8, int(2**j3*dy3*2/N))
+            edge_dx = min(4, int(2**j3*dx3*2/M))
+            edge_dy = min(4, int(2**j3*dy3*2/N))
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
             for j2 in range(0,j3+1):
@@ -735,7 +739,7 @@ class Scattering2d(object):
                 else:
                     C01[:,j2,j3,:,:] = (
                         data_small.view(N_image,1,1,M3,N3) * torch.conj(I12_w3_small)
-                    )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor / norm_factor_C01
+                    )[...,edge_dx:M3-edge_dx, edge_dy:N3-edge_dy].mean((-2,-1)) * fft_factor / norm_factor_C01
                 if j2 <= j3:
                     for j1 in range(0, j2+1):
                         if eval(C11_criteria):
@@ -1137,8 +1141,8 @@ class Scattering2d(object):
     # ---------------------------------------------------------------------------
      
     def get_dxdy(self, j):
-        dx = int(max( 16, min( np.ceil(self.M/2**j), self.M//2 ) ))
-        dy = int(max( 16, min( np.ceil(self.N/2**j), self.N//2 ) ))
+        dx = int(max( 8, min( np.ceil(self.M/2**j*self.frequency_factor), self.M//2 ) ))
+        dy = int(max( 8, min( np.ceil(self.N/2**j*self.frequency_factor), self.N//2 ) ))
         return dx, dy
     
     # ---------------------------------------------------------------------------
@@ -1222,12 +1226,12 @@ def cut_high_k_off(data_f, dx, dy):
     return result
 
 
-def get_edge_masks(M, N, J):
+def get_edge_masks(M, N, J, d0=1):
     edge_masks = torch.empty((J, M, N))
     X, Y = torch.meshgrid(torch.arange(M), torch.arange(N), indexing='ij')
     for j in range(J):
-        edge_dx = min(M//4, 2**j)
-        edge_dy = min(N//4, 2**j)
+        edge_dx = min(M//4, 2**j*d0)
+        edge_dy = min(N//4, 2**j*d0)
         edge_masks[j] = (X>=edge_dx) * (X<=M-edge_dx) * (Y>=edge_dy) * (Y<=N-edge_dy)
     return edge_masks
 
