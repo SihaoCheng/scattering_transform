@@ -1225,9 +1225,9 @@ def cut_high_k_off(data_f, dx, dy):
 def get_edge_masks(M, N, J):
     edge_masks = torch.empty((J, M, N))
     X, Y = torch.meshgrid(torch.arange(M), torch.arange(N), indexing='ij')
-    edge_dx = max(M//4, 2**j*2)
-    edge_dy = max(N//4, 2**j*2)
     for j in range(J):
+        edge_dx = max(M//4, 2**j*2)
+        edge_dy = max(N//4, 2**j*2)
         edge_masks[j] = (X>=edge_dx) * (X<=M-edge_dx) * (Y>=edge_dy) * (Y<=N-edge_dy)
     return edge_masks
 
