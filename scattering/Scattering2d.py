@@ -705,8 +705,8 @@ class Scattering2d(object):
             wavelet_f3 = cut_high_k_off(filters_set[j3], dx3, dy3) # L,x,y
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
-            edge_dx = min(8, int(2**j3*dx3/M))
-            edge_dy = min(8, int(2**j3*dy3/N))
+            edge_dx = min(8, int(2**j3*dx3*2/M))
+            edge_dy = min(8, int(2**j3*dy3*2/N))
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
             for j2 in range(0,j3+1):
