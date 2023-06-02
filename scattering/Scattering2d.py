@@ -705,11 +705,13 @@ class Scattering2d(object):
             wavelet_f3 = cut_high_k_off(filters_set[j3], dx3, dy3) # L,x,y
             _, M3, N3 = wavelet_f3.shape
             wavelet_f3_squared = wavelet_f3**2
-            if remove_edge: 
-                edge_mask = torch.fft.ifftn(cut_high_k_off(self.edge_masks_f[j3], dx3, dy3), dim=(-2,-1))
-                edge_mask = edge_mask / edge_mask.mean((-2,-1))
-            else: 
-                edge_mask = 1
+            edge_dx = 2**j3*2*dx3*2/M
+            edge_dy = 2**j3*2*dy3*2/N
+#             if remove_edge: 
+#                 edge_mask = torch.fft.ifftn(cut_high_k_off(self.edge_masks_f[j3], dx3, dy3), dim=(-2,-1))
+#                 edge_mask = edge_mask / edge_mask.mean((-2,-1))
+#             else: 
+#                 edge_mask = 1
             # a normalization change due to the cutoff of frequency space
             fft_factor = 1 /(M3*N3) * (M3*N3/M/N)**2
             for j2 in range(0,j3+1):
@@ -737,8 +739,8 @@ class Scattering2d(object):
                     ).mean((-2,-1)) * fft_factor / norm_factor_C01
                 else:
                     C01[:,j2,j3,:,:] = (
-                        data_small.view(N_image,1,1,M3,N3) * torch.conj(I12_w3_small) * edge_mask
-                    ).mean((-2,-1)) * fft_factor / norm_factor_C01
+                        data_small.view(N_image,1,1,M3,N3) * torch.conj(I12_w3_small)
+                    )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor / norm_factor_C01
                 if j2 <= j3:
                     for j1 in range(0, j2+1):
                         if eval(C11_criteria):
@@ -762,16 +764,16 @@ class Scattering2d(object):
                                     C11_pre_norm[:,j1,j2,j3,:,:,:] = (
                                         I1_small[:,j1].view(N_image,L,1,1,M3,N3) * torch.conj(
                                             I12_w3_2_small.view(N_image,1,L,L,M3,N3)
-                                        ) * edge_mask
-                                    ).mean((-2,-1)) * fft_factor
+                                        )
+                                    )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor
                                 else:
                                     for l1 in range(L):
                                     # [N_image,l2,l3,x,y]
                                         C11_pre_norm[:,j1,j2,j3,l1,:,:] = (
                                             I1_small[:,j1].view(N_image,1,1,M3,N3) * torch.conj(
                                                 I12_w3_2_small.view(N_image,L,L,M3,N3)
-                                            ) * edge_mask
-                                        ).mean((-2,-1)) * fft_factor
+                                            )
+                                        )[...,edge_dx:-edge_dx, edge_dy:-edge_dy].mean((-2,-1)) * fft_factor
         # define P11 from diagonals of C11
         for j1 in range(J):
             for l1 in range(L):
