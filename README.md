@@ -25,6 +25,7 @@ st_calc = scattering.Scattering2d(M=256, N=256, J=5, L=4)
 2. calculate the scattering coefficients (scattering mean) and scattering covariance:
 ```python
 s_mean = st_calc.scattering_coef(image_input)
+s_mean = st_calc.scattering_coef_simple(image_input) # if you only want the statistic but not for synthesis
 s_cov  = st_calc.scattering_cov (image_input)
 
 print(s_mean['S2'])
