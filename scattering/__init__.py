@@ -33,7 +33,7 @@ def synthesis(
     target_full=None,
     ps=False, ps_bins=None, ps_bin_type='log',
     bi=False, bispectrum_bins=None, bispectrum_bin_type='log',
-    phi4=False, phi4_j=False, hist=False, hist_j=False,
+    phi4=False, phi4_j=False, hist=False, hist_factor=1, hist_j=False, hist_j_factor=1,
     ensemble=False,
     N_ensemble=1,
     reference_P00=None,
@@ -205,9 +205,9 @@ Use * or + to connect more than one condition.
         if phi4_j:
             coef_list.append(func_phi4_j(image, J))
         if hist:
-            coef_list.append(func_hist(image))
+            coef_list.append(hist_factor*func_hist(image))
         if hist_j:
-            coef_list.append(func_hist_j(image, J))
+            coef_list.append(hist_j_factor*func_hist_j(image, J))
         return torch.cat(coef_list, axis=-1)
     
     # define loss function
