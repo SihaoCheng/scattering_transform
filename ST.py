@@ -1,5 +1,10 @@
 # Updates:
 #
+# Feb 17, 2024:
+#
+# 1. Fixed a bug in the normalization in the class "FiltersSet_1D". I thank 
+# professor Albion Lawrence for pointing it out.
+#
 # Jan 22, 2021:
 #
 # 1. Fixed a bug in the normalization of low-pass filter in the class "FiltersSet".
@@ -1327,7 +1332,7 @@ class FiltersSet_1D(object):
         arg = -curv * xx * xx + 1.j * (xx * xi)
         gab = np.exp(arg).sum(0)
 
-        norm_factor = 2 * np.pi * sigma * sigma
+        norm_factor = (2 * np.pi)**0.5 * sigma
         gab = gab / norm_factor
 
         if fft_shift:
