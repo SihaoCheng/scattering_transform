@@ -1145,7 +1145,7 @@ class ST_1D(object):
                 dx1 = self.get_dx(j1)
                 data_f_small = self.cut_high_k_off_1d(data_f, dx1)
                 wavelet_f = self.cut_high_k_off_1d(filters_set[j1], dx1)
-                _, M1 = wavelet_f.shape
+                M1 = len(wavelet_f)
                 # scattering field
                 I1_temp  = torch.fft.ifftn(
                     data_f_small[:,None] * wavelet_f[None,:],
@@ -1167,7 +1167,7 @@ class ST_1D(object):
                         dx2 = self.get_dx(j2)
                         I1_temp_f_small = self.cut_high_k_off_1d(I1_temp_f, dx2)
                         wavelet_f2 = self.cut_high_k_off_1d(filters_set[j2], dx2)
-                        _, M2 = wavelet_f2.shape
+                        M2 = len(wavelet_f2)
                         # scattering field
                         I2_temp = torch.fft.ifftn(
                             I1_temp_f_small[:,:,:] * wavelet_f2[None,None,:], 
